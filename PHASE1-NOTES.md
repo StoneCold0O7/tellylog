@@ -33,3 +33,7 @@ Delivered 6 July 2026. Feeds the Phase 3 decision log. Style rules: no em dashes
 ## Files added (none deleted)
 
 src/components/Icons.jsx, ResultCard.jsx, TonightCard.jsx, FirstRun.jsx, OnboardingGrid.jsx, PHASE1-NOTES.md, CHECKLIST-PHASE1.md
+
+## Hotfix, same day
+
+Import dropzone rendered inline (label element with no display rule), collapsing onto the source list. Fixed in CSS only: block-level flex label, button-styled trigger, hover state. Wizard JSX untouched.
