@@ -229,4 +229,52 @@ t('restore of a legacy backup without Phase 1 fields still works', () => {
   assert.strictEqual(lists.next.length, 1);
 });
 
+
+
+/* ---------- Phase 1.5 helpers ---------- */
+
+t('watchedMapFor: maps s-e keys to log timestamps for one show only', () => {
+  Store.clearAll();
+  Store.addShow({ id: 5, name: 'Five', seasons: [{ season_number: 1, episode_count: 3 }] });
+  Store.addShow({ id: 6, name: 'Six', seasons: [{ season_number: 1, episode_count: 3 }] });
+  Store.markEpisode(5, 1, 1, true, 111);
+  Store.markEpisode(5, 1, 2, true, 222);
+  Store.markEpisode(6, 1, 1, true, 999);
+  const map = Store.watchedMapFor(5);
+  assert.strictEqual(map['1-1'], 111);
+  assert.strictEqual(map['1-2'], 222);
+  assert.strictEqual(map['1-3'], undefined);
+  assert.strictEqual(Object.keys(map).length, 2);
+});
+
+t('librarySummary: includes show progress and film lists', () => {
+  Store.clearAll();
+  Store.addShow({ id: 7, name: 'Seven', status: 'Ended', seasons: [{ season_number: 1, episode_count: 4 }] });
+  Store.markEpisode(7, 1, 1, true);
+  Store.addMovie({ id: 90, title: 'FilmA', runtime: 100 });
+  Store.setMovieWatched(90, true);
+  Store.addMovie({ id: 91, title: 'FilmB', runtime: 100 });
+  const sum = Store.librarySummary();
+  assert.ok(sum.indexOf('Seven, 1/4 eps, Ended') !== -1);
+  assert.ok(sum.indexOf('Films watched: FilmA') !== -1);
+  assert.ok(sum.indexOf('Film watchlist: FilmB') !== -1);
+});
+
+t('librarySummary: marks archived shows as dropped and respects the cap', () => {
+  Store.clearAll();
+  for (let i = 1; i <= 35; i++) {
+    Store.addShow({ id: 100 + i, name: 'Show' + i, seasons: [{ season_number: 1, episode_count: 2 }] });
+  }
+  Store.setArchived(101, true);
+  const sum = Store.librarySummary(30);
+  const lines = sum.split('\n').filter((l) => l.indexOf('- ') === 0);
+  assert.strictEqual(lines.length, 30);
+  assert.ok(sum.indexOf('Show1, 0/2 eps, dropped') !== -1);
+});
+
+t('librarySummary: empty store gives empty string', () => {
+  Store.clearAll();
+  assert.strictEqual(Store.librarySummary(), '');
+});
+
 console.log('\nAll ' + passed + ' tests passed.');

@@ -1,4 +1,4 @@
-/* TellyLog — util.js
+/* Logline - util.js
    Pure helper functions. No DOM access. Exported to Node for unit tests. */
 
   /* ---------- CSV ---------- */
@@ -224,8 +224,54 @@
     return { film: title };
   }
 
+  /* ---------- Phase 1.5: show metadata helpers (pure) ---------- */
+
+  // "2000-2002" from first/last air dates; "2000-" while still returning.
+  function yearRange(firstAirDate, lastAirDate, status) {
+    var y1 = (firstAirDate || '').slice(0, 4);
+    if (!y1) return '';
+    var ongoing = status === 'Returning Series' || status === 'In Production';
+    var y2 = ongoing ? '' : (lastAirDate || '').slice(0, 4);
+    if (!y2 && !ongoing) return y1;
+    if (y2 === y1) return y1;
+    return y1 + '-' + y2;
+  }
+
+  // TMDB /videos payload -> up to `cap` YouTube videos, trailers first.
+  var VIDEO_PRIORITY = { 'Trailer': 0, 'Teaser': 1, 'Behind the Scenes': 2, 'Featurette': 3, 'Clip': 4 };
+  function pickVideos(list, cap) {
+    cap = cap || 6;
+    return (list || [])
+      .filter(function (v) { return v.site === 'YouTube' && v.key && VIDEO_PRIORITY[v.type] != null; })
+      .sort(function (a, b) {
+        var pa = VIDEO_PRIORITY[a.type];
+        var pb = VIDEO_PRIORITY[b.type];
+        if (pa !== pb) return pa - pb;
+        return (b.official === true ? 1 : 0) - (a.official === true ? 1 : 0);
+      })
+      .slice(0, cap);
+  }
+
+  // TMDB /watch/providers region object -> de-duped provider list with
+  // a category label. Stream beats free beats ads beats rent beats buy.
+  var PROVIDER_KINDS = [['flatrate', 'Stream'], ['free', 'Free'], ['ads', 'Free with ads'], ['rent', 'Rent'], ['buy', 'Buy']];
+  function flattenProviders(region) {
+    if (!region) return [];
+    var seen = {};
+    var out = [];
+    PROVIDER_KINDS.forEach(function (pair) {
+      (region[pair[0]] || []).forEach(function (p) {
+        if (seen[p.provider_id]) return;
+        seen[p.provider_id] = true;
+        out.push({ id: p.provider_id, name: p.provider_name, logo: p.logo_path || '', kind: pair[1] });
+      });
+    });
+    return out;
+  }
+
 export {
   parseCSV, guessColumns, detectSource, parseNetflixTitle,
   normName, similarity, parseDateFlexible, dayGroup,
-  fmtTvTime, fmtRuntime, fmtNumber, fmtDate, esc, seLabel, DAY_MS
+  fmtTvTime, fmtRuntime, fmtNumber, fmtDate, esc, seLabel, DAY_MS,
+  yearRange, pickVideos, flattenProviders
 };

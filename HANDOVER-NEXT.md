@@ -1,47 +1,34 @@
-# TellyLog: Handover for the next sessions (post Phase 1)
+# Logline: Phase 2 handover (supersedes the Phase 1.5 handover)
 
-Last updated: after Phase 1 verification, July 2026. Take this file plus the codebase zip into the next session. Style rules for all output: no em dashes, no ", and" (drop the Oxford comma), confidence tags [Certain] / [Likely] / [Guessing] on factual claims.
+Last updated: 6 July 2026, after the Phase 1.5 depth pass, the Phase 2 scaffold and the rename from TellyLog to Logline. Take this file plus the current codebase zip into the next session. SESSION-LOG.md in the repo carries the full reasoning record.
 
----
+Style rules for all output: no em dashes, no ", and", confidence tags [Certain] / [Likely] / [Guessing] on factual claims.
 
 ## 1. Current state
 
-- Phase 0 (React port) and Phase 1 (Tonight-first redesign) are complete, deployed to tellylog-3d2u.vercel.app and verified by the author against CHECKLIST-PHASE1.md. One post-verification hotfix landed: the import dropzone rendered inline and overlapped the source list; fixed in CSS only.
-- Test state: 60 automated checks. 32 util, 21 store, 7 jsdom smoke. Production build clean. [Certain]
-- Schema: `tellylog:v1`, Phase 1 added three additive fields (show.keptAt, settings.theme, settings.gridSeen). Legacy backups restore cleanly, covered by a test. Import wizard logic untouched since Phase 0. [Certain]
-- Author is non-technical: all tests run inside the build session, author verifies via browser checklist on the deployed site, updates GitHub by dragging the extracted folder onto the upload page (queued list must show paths with slashes).
+- Deployed at tellylog-3d2u.vercel.app (domain rename optional, see VERCEL-SETUP.md). App renamed Logline throughout the UI; storage key remains tellylog:v1 on purpose. [Certain]
+- Tests: 72 (40 util, 25 store, 7 jsdom smoke). Production build clean. [Certain]
+- Phase 1.5 shipped: show modal enrichment (about, cast, GB providers with JustWatch credit, trailers, more-like-this rail), episode depth (stills, overviews, air and watched dates, next-up highlight, season mini progress), perceived performance (skeletons, image fade-in, no layout shift)
+- Phase 2 scaffold shipped dormant: /api/health, /api/ask (Anthropic, JSON-constrained), /api/tmdb proxy (path allowlist), client ask box gated on /api/health. Nothing visible until env vars exist. [Certain]
+- Author remains non-technical: tests run inside the build session, verification via browser checklist, GitHub upload by drag-and-drop, deleted files always listed.
 
-## 2. Revised sequencing (Phase 1.5 inserted)
+## 2. Phase 2 proper (next build session)
 
-The author flagged after Phase 1 that the UI, while redesigned, still shares the standard tracker grammar and can feel sluggish or rudimentary in places. Diagnosis: layout grammar (bottom tabs, poster rows) is shared by every tracker by convention; the fixable part is perceived performance (no loading skeletons, images pop in late, layout shifts) plus missing content depth (bare episode lists). Hence:
+Preconditions the author must complete first:
+1. Real TV Time export imported and verified (~11,413 episodes). Still outstanding. [Certain]
+2. ANTHROPIC_API_KEY added in Vercel per VERCEL-SETUP.md, box confirmed appearing.
 
-**Phase 1.5: Depth and polish (next session).** No AI, no proxy. Contents:
-1. Episode one-line descriptions plus episode still images in the season accordion. Zero extra API calls: the tvSeason payload already returns `overview` and `still_path` per episode; the app fetches it today and discards both. [Certain]
-2. Episode overview line on the Tonight card (same payload). [Certain]
-3. Trailers and behind-the-scenes clips on the show modal via the TMDB videos endpoint (`/tv/{id}/videos`), rendered as YouTube links or thumbnails. This is the API route the revamp spec chose when it cut web scraping; scraping stays cut on legal and reliability grounds. [Certain]
-4. Perceived-performance pass: skeleton placeholders for poster grids and rows, image fade-in on load, reserved image dimensions to stop layout shift, instant tab-switch feel.
-5. Author-identified robotic screens: the author brings 2 or 3 screenshots of the moments that feel most rudimentary, plus (optionally) the TV Time episode-page screenshots that did not upload last time.
-6. Regression rule unchanged: wizard logic and store schema untouched except additive fields; all suites green before delivery.
+Then the session covers:
+- Flip src/lib/tmdb.js to the /api/tmdb proxy when /api/health reports tmdbProxy, with client-key fallback, removing the key-entry onboarding for strangers
+- Rate limiting on /api/ask (the scaffold has none; the author's key is spendable by anyone if the link circulates) [Certain]
+- Ask box quality pass with real history: prompt tuning, empty-library handling, maybe rated favourites (the deferred ratings decision lives here and only here)
 
-**Phase 2: the LLM "ask us what to watch" box.** The single AI feature and the project headline. Stand up the Vercel serverless proxy (moves the TMDB key server-side too, which finally unlocks the true under-30-second stranger first run), wire the natural-language box in Explore, activate only once real watch activity exists. Confirmed as the next phase after 1.5.
+## 3. After that
 
-**Phase 3: README and decision log.** The primary portfolio deliverable. Written last.
+Phase 3: README and decision log as the primary portfolio deliverable. SESSION-LOG.md plus PHASE1-NOTES.md carry the raw material. The Kino rejection (name collision with a same-category AI-feature competitor at kino-tv.co, evidence in SESSION-LOG.md) and the Supabase scope-out defence both belong in it.
 
-Full product: shippable app after Phase 2, portfolio-complete after Phase 3. Three sessions remain on this plan. [Likely]
+## 4. Open decisions for the author
 
-## 3. Open decisions for the author
-
-1. **Real TV Time export verification.** The checklist's sample-CSV import passed. Confirm whether the full real export (target 11,413 episodes, 9 months 15 days 20 hours) has now run on the live site. This is the project's stated success criterion. If not yet run, run it before or during Phase 1.5.
-2. **Naming.** The author asked for edgier, globally readable alternatives to TellyLog. Counterpoint on record: the author's own portfolio principle favours UK-relatable projects, and "Telly" is distinctly British, which is a feature for a UK hiring audience, not a bug. If renaming anyway, shortlist: Logline (film-industry term for a one-line synopsis, doubles as "log"), Kino (cinema across German, Russian and Nordic slang), NextEp, Episodic, Seen. Every candidate needs a trademark and domain check before adoption; several have existing products nearby. [Certain that checks are required] If renamed: do it in one commit immediately before Phase 3 so the README is written once under the final name; accept that the Vercel URL changes.
-
-## 4. Prompt to paste into the next session
-
----
-I am continuing TellyLog, a React TV and film tracker deployed at tellylog-3d2u.vercel.app. I am attaching the current codebase zip and HANDOVER-NEXT.md. Read both fully before responding.
-
-This session is Phase 1.5 only, as defined in section 2 of the handover: episode descriptions and still images in the season accordion, an episode overview line on the Tonight card, trailers and BTS clips via the TMDB videos endpoint, a perceived-performance pass (skeletons, image fade-in, no layout shift) and fixes for the specific screens I flag as feeling rudimentary. No AI features, no serverless proxy. Do not pull Phase 2 forward.
-
-I am attaching screenshots of the screens that feel most robotic or sluggish, plus my old TV Time episode-page screenshots for reference. [Attach them, plus the real TV Time export result if run.]
-
-Before writing code: confirm you have read everything with a 5-line summary of current state, load the frontend-design skill, give me the proposed changes in plain language for approval first and flag anything that risks the import wizard or the localStorage schema. I am non-technical: you run all tests, I verify through the browser on the deployed site. End with a zip, a list of any deleted files and a browser checklist. Follow the project style rules: no em dashes, no ", and", confidence tags [Certain] / [Likely] / [Guessing].
----
+1. Real export verification, run before Phase 2 proper. [Certain it remains outstanding]
+2. Env vars: when to spend money. VERCEL-SETUP.md is the instruction sheet.
+3. Vercel project rename: optional, breaks old links, localStorage is per-domain so a backup-and-restore is required if done. [Certain]

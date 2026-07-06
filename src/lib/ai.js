@@ -1,0 +1,53 @@
+/* Logline - ai.js
+   Phase 2 scaffold client. Talks to the Vercel serverless functions in
+   /api. Every call fails silently to null: if the functions are not
+   deployed or the ANTHROPIC_API_KEY env var is missing, the ask box
+   simply never appears. No key ever lives in this repo. */
+
+let healthPromise = null;
+
+/* Probe /api/health once per page load. Resolves to
+   { llm: bool, tmdbProxy: bool } or null when the API is absent. */
+export function checkHealth() {
+  if (healthPromise) return healthPromise;
+  healthPromise = fetch('/api/health')
+    .then(function (res) {
+      if (!res.ok) return null;
+      var ct = res.headers.get('content-type') || '';
+      if (ct.indexOf('application/json') === -1) return null; // SPA fallback page
+      return res.json();
+    })
+    .then(function (data) {
+      if (!data || data.ok !== true) return null;
+      return { llm: !!data.llm, tmdbProxy: !!data.tmdbProxy };
+    })
+    .catch(function () { return null; });
+  return healthPromise;
+}
+
+/* Ask the LLM for picks. `library` is the plain-text summary from
+   Store.librarySummary(). Resolves to { answer, picks:[{title, year,
+   mediaType, reason}] } or rejects with a message safe to show. */
+export function ask(question, library) {
+  return fetch('/api/ask', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question: question, library: library })
+  }).then(function (res) {
+    if (res.status === 503) throw new Error('The ask service is not configured yet.');
+    if (!res.ok) throw new Error('The ask service had a problem. Try again.');
+    return res.json();
+  }).then(function (data) {
+    return {
+      answer: String(data.answer || ''),
+      picks: Array.isArray(data.picks) ? data.picks.slice(0, 4).map(function (p) {
+        return {
+          title: String(p.title || ''),
+          year: p.year ? String(p.year) : '',
+          mediaType: p.mediaType === 'movie' ? 'movie' : 'tv',
+          reason: String(p.reason || '')
+        };
+      }) : []
+    };
+  });
+}

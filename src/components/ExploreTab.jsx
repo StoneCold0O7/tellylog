@@ -1,10 +1,13 @@
 /* Explore tab: debounced TMDB search + weekly trending.
-   Mirrors renderExplore/mountExplore/resultCard. */
+   Phase 1.5: skeleton grids replace the "Loading" strings.
+   Phase 2 scaffold: the AskBox mounts above trending and renders
+   nothing until the serverless proxy reports a configured LLM key. */
 import React, { useEffect, useState, useRef } from 'react';
 import * as TMDB from '../lib/tmdb.js';
 import { useApp } from '../context.js';
-import { SectionLabel, Notice, apiErrorText } from './shared.jsx';
+import { SectionLabel, Notice, apiErrorText, SkeletonCards } from './shared.jsx';
 import ResultCard from './ResultCard.jsx';
+import AskBox from './AskBox.jsx';
 
 export default function ExploreTab() {
   const { offerGrid } = useApp();
@@ -56,9 +59,17 @@ export default function ExploreTab() {
             </>
           )}
       </div>
+
+      <AskBox onAdded={offerGrid} />
+
       <div>
         {trendErr ? <Notice>{apiErrorText(trendErr)}</Notice> :
-          trending === null ? <div className="loading">Loading trending…</div> : (
+          trending === null ? (
+            <>
+              <SectionLabel>TRENDING SHOWS</SectionLabel>
+              <SkeletonCards n={8} />
+            </>
+          ) : (
             <>
               <SectionLabel>TRENDING SHOWS</SectionLabel>
               <div className="grid">{trending.tv.map((it) => <ResultCard key={'tv-' + it.id} item={it} onAdded={offerGrid} />)}</div>

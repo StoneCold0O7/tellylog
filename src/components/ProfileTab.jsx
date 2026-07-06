@@ -17,7 +17,7 @@ export default function ProfileTab() {
     const blob = new Blob([Store.exportJSON()], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'tellylog-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+    a.download = 'logline-backup-' + new Date().toISOString().slice(0, 10) + '.json';
     a.click();
     URL.revokeObjectURL(a.href);
   }

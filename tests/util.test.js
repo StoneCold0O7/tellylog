@@ -177,4 +177,64 @@ t('parseDateFlexible: impossible day flips to mm/dd', () => {
   assert.strictEqual(d.getUTCDate(), 25);
 });
 
+
+
+/* ---------- Phase 1.5 helpers ---------- */
+
+t('yearRange: ended show gives start-end', () => {
+  assert.strictEqual(U.yearRange('2000-10-03', '2002-03-27', 'Ended'), '2000-2002');
+});
+
+t('yearRange: returning show leaves the end open', () => {
+  assert.strictEqual(U.yearRange('2021-09-17', '2024-06-26', 'Returning Series'), '2021-');
+});
+
+t('yearRange: single-year show collapses to one year', () => {
+  assert.strictEqual(U.yearRange('2019-05-06', '2019-05-30', 'Ended'), '2019');
+});
+
+t('yearRange: no first air date gives empty string', () => {
+  assert.strictEqual(U.yearRange('', '2020-01-01', 'Ended'), '');
+});
+
+t('pickVideos: keeps YouTube only, trailers first, caps at 6', () => {
+  const list = [
+    { site: 'Vimeo', key: 'x', type: 'Trailer' },
+    { site: 'YouTube', key: 'a', type: 'Clip' },
+    { site: 'YouTube', key: 'b', type: 'Trailer' },
+    { site: 'YouTube', key: 'c', type: 'Behind the Scenes' },
+    { site: 'YouTube', key: 'd', type: 'Teaser' },
+    { site: 'YouTube', key: 'e', type: 'Opening Credits' }
+  ];
+  const out = U.pickVideos(list, 6);
+  assert.deepStrictEqual(out.map((v) => v.key), ['b', 'd', 'c', 'a']);
+});
+
+t('pickVideos: official trailers outrank unofficial ones', () => {
+  const list = [
+    { site: 'YouTube', key: 'fan', type: 'Trailer', official: false },
+    { site: 'YouTube', key: 'off', type: 'Trailer', official: true }
+  ];
+  assert.strictEqual(U.pickVideos(list)[0].key, 'off');
+});
+
+t('flattenProviders: de-dupes across kinds, stream label wins', () => {
+  const region = {
+    flatrate: [{ provider_id: 8, provider_name: 'Netflix', logo_path: '/n.png' }],
+    rent: [
+      { provider_id: 8, provider_name: 'Netflix', logo_path: '/n.png' },
+      { provider_id: 2, provider_name: 'Apple TV', logo_path: '/a.png' }
+    ]
+  };
+  const out = U.flattenProviders(region);
+  assert.strictEqual(out.length, 2);
+  assert.strictEqual(out[0].name, 'Netflix');
+  assert.strictEqual(out[0].kind, 'Stream');
+  assert.strictEqual(out[1].kind, 'Rent');
+});
+
+t('flattenProviders: missing region gives empty list', () => {
+  assert.deepStrictEqual(U.flattenProviders(undefined), []);
+});
+
 console.log('\nAll ' + passed + ' tests passed.');

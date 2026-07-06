@@ -1,21 +1,21 @@
-# TellyLog
+# Logline
 
-A self-hosted replacement for the TV Time app, built when the app announced its shutdown. Tracks TV shows episode by episode, keeps a film watchlist, shows upcoming episodes for tracked shows and rebuilds the classic TV Time profile stats (total TV time, episodes watched). Imports your original TV Time CSV export so years of watch history are not lost.
+A self-hosted replacement for the TV Time app, built when that app announced its shutdown. Tracks TV shows episode by episode, keeps a film watchlist, shows upcoming episodes for tracked shows and rebuilds the classic TV Time profile stats (total TV time, episodes watched). Imports TV Time, Netflix, Letterboxd and IMDb exports so years of watch history are not lost.
 
-All data lives in your browser. No accounts, no server, no tracking.
-
-![Built with vanilla JavaScript](https://img.shields.io/badge/dependencies-zero-brightgreen) ![License MIT](https://img.shields.io/badge/license-MIT-blue)
+Formerly TellyLog. All data lives in your browser. No accounts, no tracking.
 
 ## Features
 
-- **Shows tab**: Watch Next queue, a "Haven't watched for a while" bucket for shows untouched for 30+ days and full watched history, in the TV Time visual style
-- **Episode tracking**: check off single episodes, whole seasons or entire shows; progress bars per show
-- **Upcoming tab**: future episodes of tracked shows grouped by day (Yesterday / Today / weekday / Later with day counts)
+- **Shows tab**: a Tonight card with the single most likely next episode, an Up Next queue, a "Still watching?" keep-or-drop bucket for shows untouched for 30+ days and full watched history
+- **Show pages**: synopsis, genres, year range, TMDB rating, cast, GB streaming availability (data by JustWatch via TMDB), trailers, episode stills with one-line overviews, air and watched dates, per-season progress and a pinned next-unwatched highlight
+- **Episode tracking**: check off single episodes, whole seasons or entire shows; progress bars per show and per season
+- **Upcoming tab**: future episodes of tracked shows grouped by day
 - **Films tab**: watchlist and watched list with runtime stats
-- **Explore tab**: search any show or film plus trending lists, powered by TMDB
+- **Explore tab**: search any show or film plus weekly trending, powered by TMDB. An optional natural-language "ask what to watch" box appears when the owner deploys the serverless functions with an Anthropic API key (see VERCEL-SETUP.md)
 - **Profile stats**: total TV time in months / days / hours and episode count, matching TV Time's profile card
-- **Multi-source import**: one wizard handles TV Time, Netflix viewing activity, Letterboxd and IMDb CSV exports. The source is auto-detected from the file's headers. Show names are matched against TMDB with a similarity score; confident matches are accepted automatically and ambiguous ones ask for confirmation
-- **Backup and restore**: one-click JSON export of everything, restorable on any machine
+- **Multi-source import**: one wizard handles TV Time, Netflix viewing activity, Letterboxd and IMDb CSV exports, auto-detected from the file's headers. Show names are matched against TMDB with a similarity score; confident matches are accepted automatically and ambiguous ones ask for confirmation
+- **Backup and restore**: one-click JSON export of everything, restorable on any machine. TellyLog-era backups restore unchanged
+- **Themes**: dark by default, light available in Profile
 
 ## Setup
 
@@ -25,84 +25,73 @@ You need one thing: a free TMDB API key.
 2. Go to Settings → API → Create → Developer, fill in the short form (personal use is fine)
 3. Copy the **API Key (v3 auth)**
 
-Then run the app:
-
-**Option A, no tooling at all**: open `index.html` in a browser. The app is plain script tags, so it works from `file://`.
-
-**Option B, local server** (recommended, avoids any browser quirks with local files):
+Run locally:
 
 ```bash
-cd tellylog
-python3 -m http.server 8000
-# open http://localhost:8000
+npm install
+npm run dev
 ```
 
 On first load the app asks for your TMDB key. The key is stored in your browser's localStorage only. It is never written into the code and never sent anywhere except directly to TMDB.
 
-## Deploying to GitHub Pages
+## Deploying
 
-The repo is a static site, so Pages hosts it as-is:
-
-1. Push the repo to GitHub
-2. Repository Settings → Pages → Source: `main` branch, root folder
-3. Visit `https://<username>.github.io/<repo>/`
-
-Each visitor (including you on another device) enters their own TMDB key on first load.
+The app is a Vite build deployed on Vercel. Connect the repo, accept the Vite preset and deploy. The optional serverless functions in `api/` activate automatically once the environment variables described in `VERCEL-SETUP.md` exist; without them the deployed app behaves exactly like the static build.
 
 ## Importing your history
 
 Open Profile → Import TV Time export and pick any of these files. The wizard detects the source automatically:
 
-**TV Time** (Settings → export, or via their support email if the in-app option is gone). Full episode-level history with dates. You get a column-mapping step to check the auto-detected columns before matching.
+**TV Time** (Settings → export, or via their support email). Full episode-level history with dates, with a column-mapping step before matching.
 
-**Netflix** (Account → Profile → Viewing activity → Download all). Netflix only exports episode *names*, not numbers, so TellyLog resolves each name against TMDB's episode list per season. Titles like "Dark: Season 1: Secrets" become tracked episodes; plain titles become films. A few unusually named episodes may not resolve and are reported at the end.
+**Netflix** (Account → Profile → Viewing activity → Download all). Netflix only exports episode *names*, not numbers, so Logline resolves each name against TMDB's episode list per season. Titles like "Dark: Season 1: Secrets" become tracked episodes; plain titles become films.
 
-**Letterboxd** (Settings → Data → Export). Select watched.csv and watchlist.csv together: watched films are logged with their dates, watchlist films land on your Films watchlist. Years from the export are used to disambiguate remakes.
+**Letterboxd** (Settings → Data → Export). watched.csv logs films with dates, watchlist.csv fills the Films watchlist. Export years disambiguate remakes.
 
-**IMDb** (Your Ratings → Export). Films are logged as watched; TV series are added as tracked shows with no episodes marked (IMDb exports do not contain episode-level watch data). Single-episode ratings are skipped because the export does not say which series they belong to.
+**IMDb** (Your Ratings → Export). Films are logged as watched; TV series are added with no episodes marked because the export carries no episode-level data.
 
-**TellyLog backup** (.json) restores everything from another device.
+**Logline backup** (.json) restores everything from another device. Backups made under the TellyLog name work identically.
 
-Sample files for every source live in `sample-data/` if you want to try the wizard before using real exports.
+Sample files for every source live in `sample-data/`.
 
 ## Architecture
 
-Deliberately boring on purpose: zero dependencies, no build step, no framework.
-
 ```
-index.html          app shell, tab bar, plain script tags (no modules)
-css/styles.css      dark theme, mobile-first, 680px column
-js/util.js          pure functions: CSV parser, column guesser, name
-                    similarity (Dice bigrams), flexible date parsing,
-                    TV Time style duration formatting
-js/store.js         all state + persistence (localStorage), selectors for
-                    watch-next / history / upcoming / stats, import merge,
-                    JSON backup and restore
-js/tmdb.js          TMDB v3 client with in-memory cache and a concurrency
-                    limiter
-js/views.js         pure-ish render functions returning HTML strings
-js/app.js           hash routing, one delegated click handler driven by
-                    data-action attributes, modals, toasts
-js/importer.js      the CSV import wizard state machine
-tests/              Node test suites for util.js and store.js (no test
-                    framework, just assert)
+index.html               app shell
+src/main.jsx             React entry
+src/styles.css           two themes via CSS custom properties, 680px column
+src/lib/util.js          pure functions: CSV parser, column guesser, name
+                         similarity, date parsing, duration formatting,
+                         provider and video shaping
+src/lib/store.js         all state + persistence (localStorage), selectors,
+                         import merge, JSON backup and restore
+src/lib/tmdb.js          TMDB v3 client with in-memory cache and a
+                         concurrency limiter
+src/lib/ai.js            client for the optional serverless ask feature
+src/components/          React components, one file per surface
+src/hooks/useStore.js    useSyncExternalStore bridge to the store
+api/                     Vercel serverless functions: health probe, TMDB
+                         proxy, LLM ask endpoint (all optional, all inert
+                         without their env vars)
+tests/                   node assert suites for util and store plus a
+                         vitest + jsdom smoke suite
 ```
 
 Run the tests:
 
 ```bash
-node tests/util.test.js
-node tests/store.test.js
+npm test
 ```
 
 ## Privacy
 
-- All watch data is stored in `localStorage` under the key `tellylog:v1`
-- The only network calls are to `api.themoviedb.org` for metadata and `image.tmdb.org` for posters
-- Clearing browser data deletes everything, so use Profile → Back up data periodically
+- All watch data is stored in `localStorage` under the key `tellylog:v1` (the key predates the rename and is kept so existing data survives)
+- Network calls go to `api.themoviedb.org` for metadata, `image.tmdb.org` for posters and `img.youtube.com` for trailer thumbnails
+- If the owner enables the ask feature, questions plus a compact summary of the library go to the owner's own serverless endpoint and from there to Anthropic. The box does not exist otherwise
+- Clearing browser data deletes everything, so use Profile → Download backup periodically
 
 ## Credits
 
-Show and film metadata from [TMDB](https://www.themoviedb.org/). This product uses the TMDB API but is not endorsed or certified by TMDB.
+Show and film metadata from [TMDB](https://www.themoviedb.org/). This product uses the TMDB API but is not endorsed or certified by TMDB. Streaming availability data by [JustWatch](https://www.justwatch.com), licensed through TMDB.
 
 Interface design inspired by the TV Time app.

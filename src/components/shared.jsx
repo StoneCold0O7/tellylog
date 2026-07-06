@@ -1,34 +1,103 @@
 /* Shared building blocks. Each mirrors an HTML-string builder from the
-   original views.js, keeping identical class names for CSS parity. */
+   original views.js, keeping identical class names for CSS parity.
+   Phase 1.5: the episode cache now stores {name, overview, still,
+   airDate} per episode, images fade in on load and skeletons replace
+   the plain "Loading" strings. */
 import React, { useEffect, useState } from 'react';
 import * as TMDB from '../lib/tmdb.js';
 import * as U from '../lib/util.js';
 import { useApp } from '../context.js';
 
-/* Module-level episode-name cache shared by the Tonight card and the
-   queue rows (was previously local to ShowsTab). */
-const epNameCache = {};
-export function useEpisodeName(showId, s, e) {
+/* Module-level episode metadata cache shared by the Tonight card, the
+   queue rows and the show modal. One tvSeason fetch fills every
+   episode of that season. */
+const epMetaCache = {};
+export function useEpisodeMeta(showId, s, e) {
   const key = showId + '-' + s + '-' + e;
   const [, force] = useState(0);
   useEffect(() => {
-    if (epNameCache[key] != null) return;
+    if (epMetaCache[key] != null) return;
     let alive = true;
     TMDB.tvSeason(showId, s).then((season) => {
       (season.episodes || []).forEach((ep) => {
-        epNameCache[showId + '-' + s + '-' + ep.episode_number] = ep.name || '';
+        epMetaCache[showId + '-' + s + '-' + ep.episode_number] = {
+          name: ep.name || '',
+          overview: ep.overview || '',
+          still: ep.still_path || '',
+          airDate: ep.air_date || ''
+        };
       });
       if (alive) force((n) => n + 1);
     }).catch(() => {});
     return () => { alive = false; };
   }, [key, showId, s]);
-  return epNameCache[key] != null ? epNameCache[key] : '…';
+  return epMetaCache[key] || null;
+}
+
+/* Back-compat name-only hook, now a thin wrapper. */
+export function useEpisodeName(showId, s, e) {
+  const meta = useEpisodeMeta(showId, s, e);
+  return meta ? meta.name : '…';
+}
+
+/* Image that fades in once loaded. Dimensions come from the CSS class,
+   so nothing shifts while the file arrives. */
+export function FadeImg({ src, alt, className }) {
+  const [on, setOn] = useState(false);
+  return (
+    <img
+      className={(className || '') + ' img-fade' + (on ? ' img-fade--on' : '')}
+      src={src} alt={alt} loading="lazy"
+      onLoad={() => setOn(true)}
+    />
+  );
 }
 
 export function Poster({ path, alt, size }) {
   const url = TMDB.img(path, size || 'w185');
   if (!url) return <div className="thumb thumb--empty" aria-hidden="true">📺</div>;
-  return <img className="thumb" src={url} alt={alt} loading="lazy" />;
+  return <FadeImg className="thumb" src={url} alt={alt} />;
+}
+
+/* ---------- Skeletons ---------- */
+export function SkeletonCards({ n }) {
+  const items = [];
+  for (let i = 0; i < (n || 8); i++) {
+    items.push(
+      <div className="card" key={i} aria-hidden="true">
+        <div className="card__img skeleton"></div>
+        <div className="card__body">
+          <div className="skeleton skeleton--line" style={{ width: '80%' }}></div>
+          <div className="skeleton skeleton--line" style={{ width: '45%' }}></div>
+        </div>
+      </div>
+    );
+  }
+  return <div className="grid">{items}</div>;
+}
+
+export function SkeletonRows({ n }) {
+  const items = [];
+  for (let i = 0; i < (n || 4); i++) {
+    items.push(
+      <div className="season__ep" key={i} aria-hidden="true">
+        <div className="skeleton ep-still"></div>
+        <div style={{ flex: 1 }}>
+          <div className="skeleton skeleton--line" style={{ width: '60%' }}></div>
+          <div className="skeleton skeleton--line" style={{ width: '90%' }}></div>
+        </div>
+      </div>
+    );
+  }
+  return <div>{items}</div>;
+}
+
+export function SkeletonLines({ n }) {
+  const items = [];
+  for (let i = 0; i < (n || 3); i++) {
+    items.push(<div className="skeleton skeleton--line" key={i} style={{ width: (90 - i * 18) + '%' }} aria-hidden="true"></div>);
+  }
+  return <div className="skeleton-block">{items}</div>;
 }
 
 export function SectionLabel({ children }) {

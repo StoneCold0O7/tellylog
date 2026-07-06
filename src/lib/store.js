@@ -1,4 +1,4 @@
-/* TellyLog — store.js
+/* Logline - store.js
    Single source of truth. Persists to localStorage.
    ESM port of the original: logic unchanged, plus a subscribe/emit
    layer so React can re-render on changes. */
@@ -326,7 +326,7 @@ export function exportJSON() {
 
 export function restoreJSON(text) {
   var obj = JSON.parse(text);
-  if (!obj || obj.version !== 1 || !obj.shows) throw new Error('Not a TellyLog backup file.');
+  if (!obj || obj.version !== 1 || !obj.shows) throw new Error('Not a Logline backup file.');
   state = obj;
   save();
 }
@@ -379,6 +379,46 @@ export function nudgePick(excludeId) {
     if (!best || rem < best.remaining) best = { show: sh, remaining: rem };
   });
   return best;
+}
+
+/* Watched timestamps for one show as a {'s-e': ts} map. Built once per
+   modal render so episode rows avoid an O(log) scan each. */
+export function watchedMapFor(showId) {
+  var map = {};
+  state.log.forEach(function (l) {
+    if (l.showId === showId) map[l.s + '-' + l.e] = l.ts || 0;
+  });
+  return map;
+}
+
+/* Compact plain-text library summary for the Phase 2 ask box. Sent to
+   the serverless endpoint as LLM context. Pure read, no persistence. */
+export function librarySummary(maxShows, maxMovies) {
+  maxShows = maxShows || 30;
+  maxMovies = maxMovies || 20;
+  var lines = [];
+  var shows = Object.keys(state.shows).map(function (id) { return state.shows[id]; });
+  shows.sort(function (a, b) { return (b.lastWatchedAt || b.added) - (a.lastWatchedAt || a.added); });
+  shows.slice(0, maxShows).forEach(function (sh) {
+    var seen = watchedCount(sh);
+    var total = totalEpisodes(sh);
+    var bits = [sh.name, seen + '/' + total + ' eps'];
+    if (sh.status) bits.push(sh.status);
+    if (sh.archived) bits.push('dropped');
+    lines.push('- ' + bits.join(', '));
+  });
+  var watched = [];
+  var wishlist = [];
+  Object.keys(state.movies).forEach(function (id) {
+    var mv = state.movies[id];
+    if (mv.watchedAt) watched.push(mv.title);
+    else if (mv.watchlist) wishlist.push(mv.title);
+  });
+  var out = '';
+  if (lines.length) out += 'TV shows tracked:\n' + lines.join('\n');
+  if (watched.length) out += '\nFilms watched: ' + watched.slice(0, maxMovies).join('; ');
+  if (wishlist.length) out += '\nFilm watchlist: ' + wishlist.slice(0, maxMovies).join('; ');
+  return out.trim();
 }
 
 export function get() { return state; }

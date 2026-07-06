@@ -1,4 +1,4 @@
-/* TellyLog — styles.css (Phase 1 redesign: "Tonight-first")
+/* Logline - styles.css (Phase 1 redesign: "Tonight-first")
    Two themes driven by CSS custom properties on <html data-theme>.
    Dark is default. Media surfaces (backdrop heroes) stay cinematic
    dark in BOTH themes; only UI chrome flips. Amber is the brand. */
@@ -615,3 +615,151 @@ a { color: var(--link); }
   box-shadow: var(--shadow);
 }
 .toast--show { opacity: 1; transform: translate(-50%, 0); }
+
+/* ================= Phase 1.5 additions ================= */
+
+/* ---------- Image fade-in (no layout shift: sizes come from classes) */
+.img-fade { opacity: 0; transition: opacity 0.25s ease; }
+.img-fade--on { opacity: 1; }
+
+/* ---------- Skeletons ---------- */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--line) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.3s linear infinite;
+  border-radius: 8px;
+}
+.skeleton--line { height: 12px; margin: 6px 0; }
+.skeleton-block { padding: 6px 0; }
+
+/* ---------- Tonight card: bg fade + overview ---------- */
+.tonight { transition: background-color 0.3s ease; }
+.tonight__overview {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--on-media-dim);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ---------- Show modal: enrichment sections ---------- */
+.modal__sections { padding: 4px 16px 0; }
+
+.nextup {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--accent-soft);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin: 6px 0 4px;
+}
+.nextup__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 700; letter-spacing: 0.16em;
+  color: var(--link);
+}
+.nextup__main { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; }
+.nextup__se { font-family: var(--font-mono); font-size: 12px; font-weight: 700; }
+.nextup__name { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.about { margin: 8px 0 2px; }
+.about__chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.about__text { margin: 0; font-size: 14px; line-height: 1.5; color: var(--ink); }
+
+.cast-strip {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 84px;
+  gap: 10px; overflow-x: auto; padding-bottom: 6px;
+}
+.cast { width: 84px; }
+.cast__photo {
+  width: 84px; height: 84px; border-radius: 50%;
+  object-fit: cover; background: var(--surface-2);
+}
+.cast__photo--empty { display: flex; align-items: center; justify-content: center; font-size: 26px; color: var(--muted); }
+.cast__name { font-size: 12px; font-weight: 600; margin-top: 6px; line-height: 1.2; }
+.cast__role { font-size: 11px; color: var(--muted); line-height: 1.2; margin-top: 1px; }
+
+.providers { display: flex; gap: 10px; flex-wrap: wrap; }
+.provider {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.provider__logo { width: 44px; height: 44px; border-radius: 10px; background: var(--surface-2); }
+.provider__kind { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.08em; color: var(--muted); }
+.jw-credit { font-size: 11px; color: var(--muted); margin-top: 8px; }
+.jw-credit a { color: var(--link); }
+
+.video-strip {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 168px;
+  gap: 10px; overflow-x: auto; padding-bottom: 6px;
+}
+.video {
+  position: relative; display: block;
+  border-radius: 10px; overflow: hidden;
+  background: var(--surface-2);
+  aspect-ratio: 16 / 9;
+  width: 168px;
+}
+.video__thumb { width: 100%; height: 100%; object-fit: cover; }
+.video__play {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: #FFFFFF; font-size: 22px;
+  background: rgba(10, 8, 14, 0.28);
+}
+.video__label {
+  position: absolute; left: 6px; bottom: 6px;
+  font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: 0.08em;
+  background: rgba(10, 8, 14, 0.72); color: #FFFFFF;
+  padding: 2px 6px; border-radius: 5px;
+}
+
+/* Season accordion: mini progress bar + rich episode rows */
+.season__minibar {
+  width: 44px; height: 4px; border-radius: 2px;
+  background: var(--surface-2);
+  overflow: hidden;
+  display: inline-block;
+}
+.season__minibar span { display: block; height: 100%; background: var(--accent); }
+.season__ep { align-items: flex-start; }
+.season__ep--watched { opacity: 0.62; }
+.season__ep-main { flex: 1; min-width: 0; }
+.season__ep-top { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.season__ep-overview {
+  font-size: 12px; color: var(--muted); line-height: 1.4; margin-top: 2px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.season__ep-dates { font-family: var(--font-mono); font-size: 10px; color: var(--muted); margin-top: 4px; letter-spacing: 0.03em; }
+.ep-still {
+  width: 96px; height: 54px; flex-shrink: 0;
+  object-fit: cover; border-radius: 6px;
+  background: var(--surface-2);
+}
+.ep-still--empty { display: flex; align-items: center; justify-content: center; font-size: 16px; color: var(--muted); }
+
+/* More-like-this rail */
+.modal__recs { padding: 0 16px 20px; }
+.rec { position: relative; }
+.rec__name {
+  display: block;
+  font-size: 11px; font-weight: 600; line-height: 1.25;
+  margin-top: 5px; text-align: left;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  max-width: 92px;
+}
+
+/* ---------- Ask box (Phase 2, hidden until proxy is live) ---------- */
+.askbox { margin-top: 4px; }
+.askbox__row { display: flex; gap: 8px; }
+.askbox__row .search { flex: 1; }
+.askbox__go { flex-shrink: 0; }
+.askbox__answer { font-size: 14px; color: var(--ink); margin: 12px 2px 10px; }

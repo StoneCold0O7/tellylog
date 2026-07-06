@@ -110,7 +110,7 @@ export default function App() {
     <AppContext.Provider value={ctx}>
       {hasKey && (
         <header id="topbar" className="topbar">
-          <div className="brand">Telly<span>Log</span></div>
+          <div className="brand">Log<span>line</span></div>
         </header>
       )}
 

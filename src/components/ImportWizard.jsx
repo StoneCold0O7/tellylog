@@ -312,7 +312,7 @@ export default function ImportWizard() {
           toast('Backup restored.');
           closeModal();
         } catch (e) {
-          toast('That JSON is not a TellyLog backup.');
+          toast('That JSON is not a Logline backup.');
         }
       });
       return;
@@ -377,13 +377,13 @@ export default function ImportWizard() {
   if (st.step === 'pick') {
     return (
       <>
-        <Head title="Import your history" sub="Drop in a CSV export and TellyLog works out where it came from." />
+        <Head title="Import your history" sub="Drop in a CSV export and Logline works out where it came from." />
         <div className="source-list">
           <div className="source-row"><strong>TV Time</strong><span>tracking export CSV: full episode history</span></div>
           <div className="source-row"><strong>Netflix</strong><span>Account → Profile → Viewing activity → Download all</span></div>
           <div className="source-row"><strong>Letterboxd</strong><span>Settings → Data → Export: watched.csv, watchlist.csv</span></div>
           <div className="source-row"><strong>IMDb</strong><span>Your Ratings → Export: films and tracked series</span></div>
-          <div className="source-row"><strong>TellyLog</strong><span>backup .json from another device</span></div>
+          <div className="source-row"><strong>Logline</strong><span>backup .json from another device (TellyLog backups work too)</span></div>
         </div>
         <label className="dropzone">
           <input type="file" accept=".csv,.json,text/csv,application/json" multiple hidden onChange={(e) => onFiles(e.target.files)} />
