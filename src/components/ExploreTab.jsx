@@ -8,6 +8,7 @@ import { useApp } from '../context.js';
 import { SectionLabel, Notice, apiErrorText, SkeletonCards } from './shared.jsx';
 import ResultCard from './ResultCard.jsx';
 import AskBox from './AskBox.jsx';
+import MicButton from './MicButton.jsx';
 
 export default function ExploreTab() {
   const { offerGrid } = useApp();
@@ -27,8 +28,7 @@ export default function ExploreTab() {
     }).catch((err) => setTrendErr(err));
   }, []);
 
-  function onInput(e) {
-    const val = e.target.value;
+  function runSearch(val) {
     setQ(val);
     clearTimeout(timer.current);
     const query = val.trim();
@@ -46,8 +46,9 @@ export default function ExploreTab() {
 
   return (
     <>
-      <div className="search-wrap">
-        <input className="search" type="search" placeholder="Search shows and films" autoComplete="off" value={q} onChange={onInput} />
+      <div className="search-wrap micwrap">
+        <input className="search search--mic" type="search" placeholder="Search shows and films" autoComplete="off" value={q} onChange={(e) => runSearch(e.target.value)} />
+        <MicButton onText={runSearch} />
       </div>
       <div>
         {searchErr ? <Notice>{apiErrorText(searchErr)}</Notice> :

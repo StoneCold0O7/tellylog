@@ -109,19 +109,40 @@ export default function App() {
     return () => { document.body.style.overflow = ''; };
   }, [modal]);
 
+  /* Phase 2 boot: a stored key unlocks the app instantly, exactly as
+     before. With no key we wait (briefly, capped at 4s inside tmdb.js)
+     for /api/health: proxy present means visitors skip the key screen
+     entirely; absent means the key screen shows as it always did. */
   const hasKey = !!Store.apiKey();
+  const [tmdbMode, setTmdbMode] = useState(null); // null=probing
+  useEffect(() => {
+    let alive = true;
+    TMDB.ready().then((m) => { if (alive) setTmdbMode(m); });
+    return () => { alive = false; };
+  }, []);
+  const canBrowse = hasKey || tmdbMode === 'proxy';
+  const booting = !canBrowse && tmdbMode === null;
+
   const ctx = { go, toast, openShow, openPreview, openModal: setModal, closeModal, moviesSub, setMoviesSub, offerGrid };
+
+  if (booting) {
+    return (
+      <div className="onboard" aria-busy="true">
+        <div className="brand brand--big">Telly<span>Log</span></div>
+      </div>
+    );
+  }
 
   return (
     <AppContext.Provider value={ctx}>
-      {hasKey && (
+      {canBrowse && (
         <header id="topbar" className="topbar">
           <div className="brand">Telly<span>Log</span></div>
         </header>
       )}
 
       <main id="view" className="view" aria-live="polite">
-        {!hasKey ? <Onboarding /> : (
+        {!canBrowse ? <Onboarding /> : (
           tab === 'shows' ? <ShowsTab /> :
           tab === 'upcoming' ? <UpcomingTab /> :
           tab === 'movies' ? <MoviesTab /> :
@@ -130,7 +151,7 @@ export default function App() {
         )}
       </main>
 
-      {hasKey && (
+      {canBrowse && (
         <nav id="tabs" className="tabs" aria-label="Sections">
           {TAB_META.map(([t, Icon, label]) => (
             <button key={t} className={'tab' + (tab === t ? ' tab--on' : '')} onClick={() => go(t)}>

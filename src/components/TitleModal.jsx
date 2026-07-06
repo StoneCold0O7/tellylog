@@ -35,13 +35,13 @@ export default function TitleModal({ media, id }) {
     if (isTV) {
       grab(TMDB.tvDetails(id), setDetails);
       grab(TMDB.tvCredits(id), setCredits, (d) => (d.cast || []).slice(0, 12));
-      grab(TMDB.tvProviders(id), setProviders, (d) => U.flattenProviders(d.results && d.results.GB));
+      grab(TMDB.tvProviders(id), setProviders, (d) => U.providersWithLink(d.results && d.results.GB));
       grab(TMDB.tvVideos(id), setVideos, (d) => U.pickVideos(d.results, 6));
       grab(TMDB.tvRecommendations(id), setRecs, (d) => (d.results || []).filter((r) => r.poster_path).slice(0, 10));
     } else {
       grab(TMDB.movieDetails(id), setDetails);
       grab(TMDB.movieCredits(id), setCredits, (d) => (d.cast || []).slice(0, 12));
-      grab(TMDB.movieProviders(id), setProviders, (d) => U.flattenProviders(d.results && d.results.GB));
+      grab(TMDB.movieProviders(id), setProviders, (d) => U.providersWithLink(d.results && d.results.GB));
       grab(TMDB.movieVideos(id), setVideos, (d) => U.pickVideos(d.results, 6));
       grab(TMDB.movieRecommendations(id), setRecs, (d) => (d.results || []).filter((r) => r.poster_path).slice(0, 10));
     }
@@ -165,18 +165,24 @@ export default function TitleModal({ media, id }) {
           </>
         )}
 
-        {providers && providers.length > 0 && (
+        {providers && providers.list && providers.list.length > 0 && (
           <>
             <SectionLabel>WHERE TO WATCH · GB</SectionLabel>
             <div className="providers">
-              {providers.map((p) => (
+              {providers.list.map((p) => providers.link ? (
+                <a className="provider provider--link" key={p.id} href={providers.link} target="_blank" rel="noopener noreferrer"
+                  title={p.name + ' · ' + p.kind + ' · opens the watch page'}>
+                  {p.logo ? <FadeImg className="provider__logo" src={TMDB.img(p.logo, 'w92')} alt={p.name} /> : null}
+                  <span className="provider__kind">{p.kind}</span>
+                </a>
+              ) : (
                 <span className="provider" key={p.id} title={p.name + ' · ' + p.kind}>
                   {p.logo ? <FadeImg className="provider__logo" src={TMDB.img(p.logo, 'w92')} alt={p.name} /> : null}
                   <span className="provider__kind">{p.kind}</span>
                 </span>
               ))}
             </div>
-            <div className="jw-credit">Watch data powered by <a href="https://www.justwatch.com" target="_blank" rel="noopener noreferrer">JustWatch</a></div>
+            <div className="jw-credit">Tap a service to open this title's watch page. Watch data powered by <a href="https://www.justwatch.com" target="_blank" rel="noopener noreferrer">JustWatch</a></div>
           </>
         )}
 

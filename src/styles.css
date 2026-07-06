@@ -824,3 +824,30 @@ a { color: var(--link); }
 @media (prefers-reduced-motion: reduce) {
   .arch__chev { transition: none; }
 }
+
+/* ---------- Phase 2: voice input ---------- */
+.micwrap { position: relative; }
+.askbox__row .micwrap { flex: 1; }
+.micwrap .search { width: 100%; }
+.search--mic { padding-right: 46px; }
+.mic {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  width: 34px; height: 34px; display: grid; place-items: center;
+  border: 0; border-radius: 10px; background: transparent;
+  color: var(--muted); cursor: pointer;
+}
+.mic svg { width: 19px; height: 19px; }
+.mic:hover { color: var(--ink); background: var(--surface-2); }
+.mic--on { color: var(--accent-ink); background: var(--accent); animation: mic-pulse 1.4s ease-in-out infinite; }
+@keyframes mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--accent-soft); }
+  50% { box-shadow: 0 0 0 7px var(--accent-soft); }
+}
+@media (prefers-reduced-motion: reduce) { .mic--on { animation: none; } }
+
+/* ---------- Phase 2: providers open the watch page ---------- */
+a.provider { text-decoration: none; color: inherit; }
+a.provider--link { cursor: pointer; border-radius: 12px; }
+a.provider--link:hover .provider__logo,
+a.provider--link:focus-visible .provider__logo { outline: 2px solid var(--accent); outline-offset: 2px; }
+a.provider--link:hover .provider__kind { color: var(--ink); }

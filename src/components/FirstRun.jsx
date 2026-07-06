@@ -6,6 +6,7 @@ import * as TMDB from '../lib/tmdb.js';
 import { useApp } from '../context.js';
 import { SectionLabel, Notice, apiErrorText } from './shared.jsx';
 import ResultCard from './ResultCard.jsx';
+import MicButton from './MicButton.jsx';
 
 export default function FirstRun() {
   const { openModal, offerGrid } = useApp();
@@ -14,8 +15,7 @@ export default function FirstRun() {
   const [err, setErr] = useState(null);
   const timer = useRef(null);
 
-  function onInput(e) {
-    const val = e.target.value;
+  function runSearch(val) {
     setQ(val);
     clearTimeout(timer.current);
     const query = val.trim();
@@ -35,12 +35,13 @@ export default function FirstRun() {
     <div className="firstrun">
       <h1 className="firstrun__title">What are you watching?</h1>
       <p className="firstrun__sub">Search anything, tap ＋ to start tracking.</p>
-      <div className="search-wrap">
+      <div className="search-wrap micwrap">
         <input
-          className="search" type="search" autoFocus autoComplete="off"
+          className="search search--mic" type="search" autoFocus autoComplete="off"
           placeholder="Try “Severance” or “Slow Horses”"
-          value={q} onChange={onInput}
+          value={q} onChange={(e) => runSearch(e.target.value)}
         />
+        <MicButton onText={runSearch} />
       </div>
       {err ? <Notice>{apiErrorText(err)}</Notice> :
         results === null ? null :

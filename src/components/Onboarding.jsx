@@ -30,6 +30,7 @@ export default function Onboarding() {
     <div className="onboard">
       <div className="brand brand--big">Telly<span>Log</span></div>
       <p className="onboard__lede">Your own TV tracker. Runs in your browser, keeps your data local and imports your TV Time, Netflix, Letterboxd and IMDb history.</p>
+      <p className="fineprint">This deployment has no built-in TMDB connection, so it needs a free key of your own. On tellylog on Vercel you never see this screen.</p>
       <ol className="onboard__steps">
         <li>Create a free account at <a href="https://www.themoviedb.org/signup" target="_blank" rel="noopener noreferrer">themoviedb.org</a></li>
         <li>Go to Settings → API and request a key (choose "Developer")</li>

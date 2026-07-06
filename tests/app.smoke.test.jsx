@@ -11,11 +11,12 @@ import App from '../src/components/App.jsx';
 globalThis.fetch = () => Promise.reject(new Error('offline'));
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-function mount() {
+async function mount() {
   const el = document.createElement('div');
   document.body.appendChild(el);
   const root = createRoot(el);
-  act(() => { root.render(<App />); });
+  await act(async () => { root.render(<App />); });
+  await act(async () => {}); // settle the /api/health boot probe
   return el;
 }
 
@@ -49,35 +50,35 @@ beforeEach(() => {
 });
 
 describe('App smoke', () => {
-  it('shows onboarding when no API key is stored', () => {
+  it('shows onboarding when no API key is stored', async () => {
     Store.load();
-    const el = mount();
+    const el = await mount();
     expect(el.innerHTML).toContain('Save and start');
     expect(el.innerHTML).toContain('themoviedb.org');
   });
 
-  it('shows the search-led first run when the key exists but nothing is tracked', () => {
+  it('shows the search-led first run when the key exists but nothing is tracked', async () => {
     seed({}, []);
-    const el = mount();
+    const el = await mount();
     expect(el.innerHTML).toContain('What are you watching?');
     expect(el.innerHTML).toContain('Import your history instead');
   });
 
-  it('renders the Tonight card for the most recent show with episodes left', () => {
+  it('renders the Tonight card for the most recent show with episodes left', async () => {
     seed(
       { 1: seededShow({ watched: { 1: [1] }, lastWatchedAt: Date.now() }) },
       [{ showId: 1, s: 1, e: 1, ts: Date.now() }]
     );
-    const el = mount();
+    const el = await mount();
     expect(el.innerHTML).toContain('TONIGHT');
     expect(el.innerHTML).toContain('Alpha');
     expect(el.innerHTML).toContain('Mark watched');
     expect(el.innerHTML).toContain('WATCHED HISTORY');
   });
 
-  it('logs the next episode from the Tonight card in one tap', () => {
+  it('logs the next episode from the Tonight card in one tap', async () => {
     seed({ 1: seededShow() }, []);
-    const el = mount();
+    const el = await mount();
     const btn = el.querySelector('.tonight__btn');
     expect(btn).toBeTruthy();
     act(() => { btn.click(); });
@@ -85,13 +86,13 @@ describe('App smoke', () => {
     expect(el.innerHTML).toContain('WATCHED HISTORY');
   });
 
-  it('reframes stale shows as Still watching? with one-tap Drop mapping to archive', () => {
+  it('reframes stale shows as Still watching? with one-tap Drop mapping to archive', async () => {
     const DAY = 24 * 60 * 60 * 1000;
     seed(
       { 1: seededShow({ watched: { 1: [1] }, lastWatchedAt: Date.now() - 45 * DAY }) },
       [{ showId: 1, s: 1, e: 1, ts: Date.now() - 45 * DAY }]
     );
-    const el = mount();
+    const el = await mount();
     expect(el.innerHTML).toContain('STILL WATCHING?');
     const drop = Array.from(el.querySelectorAll('.stale-card__actions .btn'))
       .find((b) => b.textContent === 'Drop');
@@ -101,13 +102,13 @@ describe('App smoke', () => {
     expect(el.innerHTML).not.toContain('STILL WATCHING?');
   });
 
-  it('Keep on a stale show moves it back to the Tonight card', () => {
+  it('Keep on a stale show moves it back to the Tonight card', async () => {
     const DAY = 24 * 60 * 60 * 1000;
     seed(
       { 1: seededShow({ watched: { 1: [1] }, lastWatchedAt: Date.now() - 45 * DAY }) },
       [{ showId: 1, s: 1, e: 1, ts: Date.now() - 45 * DAY }]
     );
-    const el = mount();
+    const el = await mount();
     const keep = Array.from(el.querySelectorAll('.stale-card__actions .btn'))
       .find((b) => b.textContent === 'Keep');
     act(() => { keep.click(); });
@@ -115,9 +116,9 @@ describe('App smoke', () => {
     expect(Store.get().shows[1].keptAt).toBeGreaterThan(0);
   });
 
-  it('applies the stored theme to the document element', () => {
+  it('applies the stored theme to the document element', async () => {
     seed({}, [], { theme: 'light' });
-    mount();
+    await mount();
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
   });
 });

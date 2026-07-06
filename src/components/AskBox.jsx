@@ -11,6 +11,7 @@ import * as Store from '../lib/store.js';
 import * as TMDB from '../lib/tmdb.js';
 import { SectionLabel, Notice } from './shared.jsx';
 import ResultCard from './ResultCard.jsx';
+import MicButton from './MicButton.jsx';
 
 export default function AskBox({ onAdded }) {
   const [enabled, setEnabled] = useState(false);
@@ -58,12 +59,15 @@ export default function AskBox({ onAdded }) {
     <div className="askbox">
       <SectionLabel>ASK WHAT TO WATCH</SectionLabel>
       <div className="askbox__row">
-        <input
-          className="search" type="text" autoComplete="off"
-          placeholder="Something funny under 30 minutes an episode…"
-          value={q} onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
-        />
+        <div className="micwrap">
+          <input
+            className="search search--mic" type="text" autoComplete="off"
+            placeholder="Something funny under 30 minutes an episode…"
+            value={q} onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
+          />
+          <MicButton onText={setQ} label="Ask by voice" />
+        </div>
         <button className="btn btn--primary askbox__go" onClick={submit} disabled={busy || !q.trim()}>
           {busy ? '…' : 'Ask'}
         </button>

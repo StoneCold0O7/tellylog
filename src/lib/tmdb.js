@@ -1,15 +1,37 @@
 /* TellyLog - tmdb.js
    Thin TMDB v3 client. In-memory cache + small concurrency limiter.
-   ESM port: identical behaviour, key read from the store module. */
+   Phase 2: on first use the client asks /api/health (once) whether the
+   deployment has a server-side TMDB proxy. If yes, every request goes
+   through /api/tmdb/... and no browser key is needed or sent. If no
+   (env var absent, static hosting, local dev), behaviour is byte-for-
+   byte what it was before: direct calls with the browser-stored key. */
 import { apiKey } from './store.js';
+import { checkHealth } from './ai.js';
 
 const BASE = 'https://api.themoviedb.org/3';
+const PROXY = '/api/tmdb/';
 const IMG = 'https://image.tmdb.org/t/p/';
+const MODE_TIMEOUT_MS = 4000; // never hold first paint hostage to a slow probe
 
 let cache = {};        // url -> promise
 let inFlight = 0;
 const MAX_CONCURRENT = 4;
 const queue = [];
+
+/* 'proxy' | 'direct', decided once per page load. */
+let modePromise = null;
+export function ready() {
+  if (modePromise) return modePromise;
+  var probe = Promise.resolve()
+    .then(function () { return checkHealth(); })
+    .then(function (h) { return h && h.tmdbProxy ? 'proxy' : 'direct'; })
+    .catch(function () { return 'direct'; });
+  var clock = new Promise(function (resolve) {
+    setTimeout(function () { resolve('direct'); }, MODE_TIMEOUT_MS);
+  });
+  modePromise = Promise.race([probe, clock]);
+  return modePromise;
+}
 
 function pump() {
   while (inFlight < MAX_CONCURRENT && queue.length > 0) {
@@ -19,21 +41,13 @@ function pump() {
   }
 }
 
-function request(path, params) {
-  var key = apiKey();
-  if (!key) return Promise.reject(new Error('NO_KEY'));
-  params = params || {};
-  params.api_key = key;
-  var qs = Object.keys(params).map(function (k) {
-    return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
-  }).join('&');
-  var url = BASE + path + '?' + qs;
+function fetchQueued(url, viaProxy) {
   if (cache[url]) return cache[url];
   cache[url] = new Promise(function (resolve, reject) {
     queue.push(function () {
       fetch(url).then(function (res) {
         inFlight--; pump();
-        if (res.status === 401) { reject(new Error('BAD_KEY')); return; }
+        if (res.status === 401 && !viaProxy) { reject(new Error('BAD_KEY')); return; }
         if (!res.ok) { reject(new Error('HTTP_' + res.status)); return; }
         res.json().then(resolve, reject);
       }, function (err) {
@@ -45,6 +59,30 @@ function request(path, params) {
     pump();
   });
   return cache[url];
+}
+
+function request(path, params) {
+  params = params || {};
+  return ready().then(function (mode) {
+    var p = Object.assign({}, params);
+    var url;
+    if (mode === 'proxy') {
+      /* Server appends the key; never send one from the browser. */
+      var qs = Object.keys(p).map(function (k) {
+        return encodeURIComponent(k) + '=' + encodeURIComponent(p[k]);
+      }).join('&');
+      url = PROXY + path.replace(/^\//, '') + (qs ? '?' + qs : '');
+      return fetchQueued(url, true);
+    }
+    var key = apiKey();
+    if (!key) return Promise.reject(new Error('NO_KEY'));
+    p.api_key = key;
+    var qs2 = Object.keys(p).map(function (k) {
+      return encodeURIComponent(k) + '=' + encodeURIComponent(p[k]);
+    }).join('&');
+    url = BASE + path + '?' + qs2;
+    return fetchQueued(url, false);
+  });
 }
 
 export function img(path, size) {

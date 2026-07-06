@@ -269,9 +269,20 @@
     return out;
   }
 
+  /* Providers plus the title's TMDB watch page (JustWatch-powered).
+     TMDB gives ONE link per title-region, not per-provider deep links,
+     so every icon opens the same page where each service is clickable.
+     Returns { list, link }; link is '' when TMDB omits it. */
+  function providersWithLink(region) {
+    return {
+      list: flattenProviders(region),
+      link: (region && region.link) || ''
+    };
+  }
+
 export {
   parseCSV, guessColumns, detectSource, parseNetflixTitle,
   normName, similarity, parseDateFlexible, dayGroup,
   fmtTvTime, fmtRuntime, fmtNumber, fmtDate, esc, seLabel, DAY_MS,
-  yearRange, pickVideos, flattenProviders
+  yearRange, pickVideos, flattenProviders, providersWithLink
 };
