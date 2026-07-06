@@ -30,7 +30,7 @@ export function setSaveErrorHandler(fn) { onSaveError = fn; }
 function blank() {
   return {
     version: 1,
-    settings: { apiKey: '', profileName: 'You' },
+    settings: { apiKey: '', profileName: 'You', theme: 'dark', gridSeen: false },
     shows: {},   // id -> show record
     movies: {},  // id -> movie record
     log: []      // [{k:'showId-s-e', showId, s, e, ts}]
@@ -133,6 +133,13 @@ export function setArchived(id, archived) {
   if (sh) { sh.archived = !!archived; save(); }
 }
 
+/* "Keep" on a stale show: resets its staleness clock without faking a
+   watch event. keptAt is additive; old data without it behaves as before. */
+export function keepShow(id) {
+  var sh = state.shows[id];
+  if (sh) { sh.keptAt = Date.now(); save(); }
+}
+
 export function isWatched(sh, s, e) {
   return !!(sh.watched[s] && sh.watched[s].indexOf(e) !== -1);
 }
@@ -206,12 +213,14 @@ export function watchNextList() {
     var next = nextEpisodeFor(sh);
     if (!next) return;
     var entry = { show: sh, next: next, remaining: remainingCount(sh) };
-    var last = sh.lastWatchedAt || sh.added;
-    if (now - last > STALE_DAYS * U.DAY_MS && sh.lastWatchedAt) stale.push(entry);
+    var activity = Math.max(sh.lastWatchedAt || 0, sh.keptAt || 0);
+    var last = activity || sh.added;
+    if (now - last > STALE_DAYS * U.DAY_MS && activity) stale.push(entry);
     else fresh.push(entry);
   });
   function byRecency(a, b) {
-    return (b.show.lastWatchedAt || b.show.added) - (a.show.lastWatchedAt || a.show.added);
+    function act(sh) { return Math.max(sh.lastWatchedAt || 0, sh.keptAt || 0) || sh.added; }
+    return act(b.show) - act(a.show);
   }
   fresh.sort(byRecency);
   stale.sort(byRecency);
@@ -355,6 +364,27 @@ export function importMovieToWatchlist(details) {
   save();
 }
 
+/* Home nudge: the started, unarchived show closest to being finished
+   (3 or fewer episodes left). excludeId lets the UI skip the show the
+   Tonight card already features. */
+export function nudgePick(excludeId) {
+  var best = null;
+  Object.keys(state.shows).forEach(function (id) {
+    var sh = state.shows[id];
+    if (sh.archived) return;
+    if (excludeId != null && sh.id === excludeId) return;
+    if (watchedCount(sh) === 0) return;
+    var rem = remainingCount(sh);
+    if (rem < 1 || rem > 3) return;
+    if (!best || rem < best.remaining) best = { show: sh, remaining: rem };
+  });
+  return best;
+}
+
 export function get() { return state; }
 export function setApiKey(k) { state.settings.apiKey = k.trim(); save(); }
 export function apiKey() { return state.settings.apiKey; }
+export function theme() { return state.settings.theme === 'light' ? 'light' : 'dark'; }
+export function setTheme(t) { state.settings.theme = t === 'light' ? 'light' : 'dark'; save(); }
+export function gridSeen() { return !!state.settings.gridSeen; }
+export function setGridSeen() { state.settings.gridSeen = true; save(); }

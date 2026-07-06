@@ -1,9 +1,29 @@
 /* Shared building blocks. Each mirrors an HTML-string builder from the
    original views.js, keeping identical class names for CSS parity. */
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import * as TMDB from '../lib/tmdb.js';
 import * as U from '../lib/util.js';
 import { useApp } from '../context.js';
+
+/* Module-level episode-name cache shared by the Tonight card and the
+   queue rows (was previously local to ShowsTab). */
+const epNameCache = {};
+export function useEpisodeName(showId, s, e) {
+  const key = showId + '-' + s + '-' + e;
+  const [, force] = useState(0);
+  useEffect(() => {
+    if (epNameCache[key] != null) return;
+    let alive = true;
+    TMDB.tvSeason(showId, s).then((season) => {
+      (season.episodes || []).forEach((ep) => {
+        epNameCache[showId + '-' + s + '-' + ep.episode_number] = ep.name || '';
+      });
+      if (alive) force((n) => n + 1);
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [key, showId, s]);
+  return epNameCache[key] != null ? epNameCache[key] : '…';
+}
 
 export function Poster({ path, alt, size }) {
   const url = TMDB.img(path, size || 'w185');

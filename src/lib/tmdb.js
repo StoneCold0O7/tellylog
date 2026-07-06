@@ -81,4 +81,10 @@ export function trendingTV() {
 export function trendingMovies() {
   return request('/trending/movie/week', {});
 }
+export function popularTV() {
+  return request('/tv/popular', {});
+}
+export function popularMovies() {
+  return request('/movie/popular', {});
+}
 export function clearCache() { cache = {}; }

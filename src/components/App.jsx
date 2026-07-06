@@ -13,14 +13,16 @@ import ProfileTab from './ProfileTab.jsx';
 import ShowModal from './ShowModal.jsx';
 import SettingsModal from './SettingsModal.jsx';
 import ImportWizard from './ImportWizard.jsx';
+import OnboardingGrid from './OnboardingGrid.jsx';
+import { IconTv, IconCalendar, IconFilm, IconSearch, IconUser } from './Icons.jsx';
 
 const TABS = ['shows', 'upcoming', 'movies', 'explore', 'profile'];
 const TAB_META = [
-  ['shows', '📺', 'Shows'],
-  ['upcoming', '🗓️', 'Upcoming'],
-  ['movies', '🎬', 'Films'],
-  ['explore', '🔍', 'Explore'],
-  ['profile', '👤', 'Profile']
+  ['shows', IconTv, 'Shows'],
+  ['upcoming', IconCalendar, 'Upcoming'],
+  ['movies', IconFilm, 'Films'],
+  ['explore', IconSearch, 'Explore'],
+  ['profile', IconUser, 'Profile']
 ];
 
 function initialTab() {
@@ -67,6 +69,24 @@ export default function App() {
   /* Storage-full errors from the store surface as toasts. */
   useEffect(() => { Store.setSaveErrorHandler(toast); }, [toast]);
 
+  /* Theme: dark default, light via settings. Applied on <html> so the
+     whole page (including modals and toast) flips together. */
+  const theme = Store.theme();
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', theme === 'light' ? '#F3EFE9' : '#14111A');
+  }, [theme]);
+
+  /* Offer the onboarding grid exactly once, right after the very first
+     show is tracked from a manual add. Never fires during imports
+     (add buttons live outside modals) or for existing data. */
+  const offerGrid = useCallback(() => {
+    if (!Store.gridSeen() && Object.keys(Store.get().shows).length === 1) {
+      setModal({ type: 'grid' });
+    }
+  }, []);
+
   /* Back/forward hash navigation. */
   useEffect(() => {
     const onHash = () => {
@@ -84,7 +104,7 @@ export default function App() {
   }, [modal]);
 
   const hasKey = !!Store.apiKey();
-  const ctx = { go, toast, openShow, openModal: setModal, closeModal, moviesSub, setMoviesSub };
+  const ctx = { go, toast, openShow, openModal: setModal, closeModal, moviesSub, setMoviesSub, offerGrid };
 
   return (
     <AppContext.Provider value={ctx}>
@@ -106,9 +126,9 @@ export default function App() {
 
       {hasKey && (
         <nav id="tabs" className="tabs" aria-label="Sections">
-          {TAB_META.map(([t, icon, label]) => (
+          {TAB_META.map(([t, Icon, label]) => (
             <button key={t} className={'tab' + (tab === t ? ' tab--on' : '')} onClick={() => go(t)}>
-              <span className="tab__icon">{icon}</span><span>{label}</span>
+              <span className="tab__icon"><Icon /></span><span>{label}</span>
             </button>
           ))}
         </nav>
@@ -116,10 +136,11 @@ export default function App() {
 
       {modal && (
         <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}>
-          <div className={'modal ' + (modal.type === 'show' ? 'modal--show' : 'modal--import')} role="dialog" aria-modal="true">
+          <div className={'modal ' + (modal.type === 'show' ? 'modal--show' : modal.type === 'grid' ? 'modal--grid' : 'modal--import')} role="dialog" aria-modal="true">
             {modal.type === 'show' && <ShowModal id={modal.id} />}
             {modal.type === 'settings' && <SettingsModal />}
             {modal.type === 'import' && <ImportWizard />}
+            {modal.type === 'grid' && <OnboardingGrid />}
           </div>
         </div>
       )}

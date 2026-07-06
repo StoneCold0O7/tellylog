@@ -1,73 +1,102 @@
-/* Shows tab: Watch Next, stale bucket, watched history.
-   Mirrors renderShows including lazy episode-name fetching. */
-import React, { useEffect, useState } from 'react';
+/* Shows tab, Phase 1 layout:
+   [nudge banner] -> [Tonight card] -> [Up next queue] ->
+   [Still watching? keep/drop] -> [history].
+   Empty store shows the search-led FirstRun instead. */
+import React, { useState } from 'react';
 import * as Store from '../lib/store.js';
-import * as TMDB from '../lib/tmdb.js';
+import * as U from '../lib/util.js';
 import { useApp } from '../context.js';
-import { EpRow, SectionLabel, EmptyState } from './shared.jsx';
+import { EpRow, SectionLabel, EmptyState, Poster, useEpisodeName } from './shared.jsx';
+import TonightCard from './TonightCard.jsx';
+import FirstRun from './FirstRun.jsx';
 
-/* Module-level episode-name cache, like the original epNameCache. */
-const epNameCache = {};
+/* Nudge dismissal lasts for the page session only, by design. */
+let nudgeDismissed = false;
 
 function NextRow({ entry }) {
   const sh = entry.show;
   const s = entry.next.s;
   const e = entry.next.e;
-  const key = sh.id + '-' + s + '-' + e;
-  const [, force] = useState(0);
-
-  useEffect(() => {
-    if (epNameCache[key] != null) return;
-    let alive = true;
-    TMDB.tvSeason(sh.id, s).then((season) => {
-      (season.episodes || []).forEach((ep) => {
-        epNameCache[sh.id + '-' + s + '-' + ep.episode_number] = ep.name || '';
-      });
-      if (alive) force((n) => n + 1);
-    }).catch(() => {});
-    return () => { alive = false; };
-  }, [key, sh.id, s]);
-
+  const epName = useEpisodeName(sh.id, s, e);
   return (
     <EpRow
       show={sh} s={s} e={e} remaining={entry.remaining}
-      epName={epNameCache[key] != null ? epNameCache[key] : '…'}
+      epName={epName}
       checked={false}
       onToggle={() => Store.markEpisode(sh.id, s, e, true)}
     />
   );
 }
 
-export default function ShowsTab() {
-  const { go, openModal } = useApp();
-  const lists = Store.watchNextList();
-  const hist = Store.history(30);
+function StaleCard({ entry }) {
+  const { openShow, toast } = useApp();
+  const sh = entry.show;
+  const last = Math.max(sh.lastWatchedAt || 0, sh.keptAt || 0) || sh.added;
+  const days = Math.max(1, Math.round((Date.now() - last) / U.DAY_MS));
+  return (
+    <article className="stale-card">
+      <button className="ep-row__poster" onClick={() => openShow(sh.id)}>
+        <Poster path={sh.poster} alt={sh.name} />
+      </button>
+      <div className="stale-card__body">
+        <button className="stale-card__name" onClick={() => openShow(sh.id)}>{sh.name}</button>
+        <div className="stale-card__meta">Last watched {days} days ago · {entry.remaining} left</div>
+      </div>
+      <div className="stale-card__actions">
+        <button className="btn btn--tiny btn--primary" onClick={() => { Store.keepShow(sh.id); toast('Kept. Back in your queue.'); }}>Keep</button>
+        <button className="btn btn--tiny btn--ghost" onClick={() => { Store.setArchived(sh.id, true); toast('Dropped. Your stats keep it.'); }}>Drop</button>
+      </div>
+    </article>
+  );
+}
 
-  if (lists.next.length === 0 && lists.stale.length === 0 && hist.length === 0) {
-    return (
-      <EmptyState title="Nothing tracked yet" sub="Find a show in Explore or import your TV Time history from Profile.">
-        <div className="empty__actions">
-          <button className="btn btn--primary" onClick={() => go('explore')}>Browse shows</button>
-          <button className="btn btn--ghost" onClick={() => openModal({ type: 'import' })}>Import TV Time data</button>
-        </div>
-      </EmptyState>
-    );
-  }
+export default function ShowsTab() {
+  const { openShow, go } = useApp();
+  const [, setTick] = useState(0);
+  const lists = Store.watchNextList();
+  const hist = Store.history(20);
+  const showCount = Object.keys(Store.get().shows).length;
+
+  if (showCount === 0 && hist.length === 0) return <FirstRun />;
+
+  const tonight = lists.next.length > 0 ? lists.next[0] : null;
+  const queue = lists.next.slice(1);
+  const nudge = !nudgeDismissed ? Store.nudgePick(tonight ? tonight.show.id : null) : null;
 
   return (
     <>
-      {lists.next.length > 0 && (
+      {nudge && (
+        <div className="nudge">
+          <button className="nudge__text" onClick={() => openShow(nudge.show.id)}>
+            <strong>{nudge.remaining === 1 ? '1 episode' : nudge.remaining + ' episodes'}</strong>
+            {' '}from finishing {nudge.show.name}
+          </button>
+          <button className="nudge__x" aria-label="Dismiss" onClick={() => { nudgeDismissed = true; setTick((n) => n + 1); }}>✕</button>
+        </div>
+      )}
+
+      {tonight ? <TonightCard entry={tonight} /> : (
+        <EmptyState title="All caught up" sub="Nothing left in your queue. Find something new in Explore.">
+          <div className="empty__actions">
+            <button className="btn btn--primary" onClick={() => go('explore')}>Browse shows</button>
+          </div>
+        </EmptyState>
+      )}
+
+      {queue.length > 0 && (
         <>
-          <SectionLabel>WATCH NEXT</SectionLabel>
-          {lists.next.map((en) => <NextRow key={en.show.id} entry={en} />)}
+          <SectionLabel>UP NEXT</SectionLabel>
+          {queue.map((en) => <NextRow key={en.show.id} entry={en} />)}
         </>
       )}
+
       {lists.stale.length > 0 && (
         <>
-          <SectionLabel>HAVEN'T WATCHED FOR A WHILE</SectionLabel>
-          {lists.stale.map((en) => <NextRow key={en.show.id} entry={en} />)}
+          <SectionLabel>STILL WATCHING?</SectionLabel>
+          {lists.stale.map((en) => <StaleCard key={en.show.id} entry={en} />)}
         </>
       )}
+
       {hist.length > 0 && (
         <>
           <SectionLabel>WATCHED HISTORY</SectionLabel>

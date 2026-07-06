@@ -139,4 +139,94 @@ t('restoreJSON rejects junk', () => {
   assert.throws(() => Store.restoreJSON('{"hello": 1}'));
 });
 
+/* ---------- Phase 1: keep/drop, nudge, theme, grid flag ---------- */
+
+t('keptAt rescues a stale show back into the fresh queue', () => {
+  Store.clearAll();
+  const DAY = 24 * 60 * 60 * 1000;
+  Store.addShow(fakeDetails(50, 'Oldie', { 1: 6 }, 40));
+  Store.markEpisode(50, 1, 1, true, Date.now() - 45 * DAY);
+  let lists = Store.watchNextList();
+  assert.strictEqual(lists.stale.length, 1);
+  assert.strictEqual(lists.next.length, 0);
+  Store.keepShow(50);
+  lists = Store.watchNextList();
+  assert.strictEqual(lists.stale.length, 0);
+  assert.strictEqual(lists.next.length, 1);
+  assert.ok(Store.get().shows[50].keptAt > 0);
+});
+
+t('watchNextList keeps its {next, stale} shape with legacy records lacking keptAt', () => {
+  Store.clearAll();
+  Store.addShow(fakeDetails(51, 'Legacy', { 1: 4 }, 40));
+  delete Store.get().shows[51].keptAt; // simulate pre-Phase-1 record
+  const lists = Store.watchNextList();
+  assert.ok(Array.isArray(lists.next));
+  assert.ok(Array.isArray(lists.stale));
+  assert.strictEqual(lists.next.length, 1);
+});
+
+t('drop maps to archive: leaves the queue, keeps stats', () => {
+  Store.clearAll();
+  Store.addShow(fakeDetails(52, 'Dropped', { 1: 5 }, 40));
+  Store.markEpisode(52, 1, 1, true);
+  Store.setArchived(52, true);
+  const lists = Store.watchNextList();
+  assert.strictEqual(lists.next.length + lists.stale.length, 0);
+  assert.strictEqual(Store.stats().episodes, 1);
+});
+
+t('nudgePick: started show with <=3 remaining wins, exclusion respected', () => {
+  Store.clearAll();
+  Store.addShow(fakeDetails(60, 'NearlyDone', { 1: 5 }, 40));
+  [1, 2, 3].forEach((e) => Store.markEpisode(60, 1, e, true)); // 2 left
+  Store.addShow(fakeDetails(61, 'Untouched', { 1: 3 }, 40));   // 3 left, never started
+  Store.addShow(fakeDetails(62, 'LongWay', { 1: 20 }, 40));
+  Store.markEpisode(62, 1, 1, true); // 19 left
+  const pick = Store.nudgePick(null);
+  assert.strictEqual(pick.show.id, 60);
+  assert.strictEqual(pick.remaining, 2);
+  assert.strictEqual(Store.nudgePick(60), null);
+});
+
+t('nudgePick ignores archived shows', () => {
+  Store.setArchived(60, true);
+  assert.strictEqual(Store.nudgePick(null), null);
+  Store.setArchived(60, false);
+});
+
+t('theme defaults to dark, persists a light choice, rejects junk', () => {
+  Store.clearAll();
+  assert.strictEqual(Store.theme(), 'dark');
+  Store.setTheme('light');
+  assert.strictEqual(Store.theme(), 'light');
+  Store.setTheme('neon');
+  assert.strictEqual(Store.theme(), 'dark');
+});
+
+t('gridSeen flag starts false and sticks once set', () => {
+  Store.clearAll();
+  assert.strictEqual(Store.gridSeen(), false);
+  Store.setGridSeen();
+  assert.strictEqual(Store.gridSeen(), true);
+});
+
+t('restore of a legacy backup without Phase 1 fields still works', () => {
+  const legacy = JSON.stringify({
+    version: 1,
+    settings: { apiKey: 'k', profileName: 'You' },
+    shows: { 70: { id: 70, name: 'Old', poster: '', backdrop: '', status: '', network: '',
+      avgRuntime: 40, seasons: { 1: 3 }, nextEp: null, lastEp: null,
+      watched: { 1: [1] }, lastWatchedAt: Date.now(), added: Date.now(),
+      archived: false, detailsFetchedAt: Date.now() } },
+    movies: {},
+    log: [{ showId: 70, s: 1, e: 1, ts: Date.now() }]
+  });
+  Store.restoreJSON(legacy);
+  assert.strictEqual(Store.theme(), 'dark');
+  assert.strictEqual(Store.gridSeen(), false);
+  const lists = Store.watchNextList();
+  assert.strictEqual(lists.next.length, 1);
+});
+
 console.log('\nAll ' + passed + ' tests passed.');

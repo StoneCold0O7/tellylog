@@ -76,6 +76,23 @@ export default function ProfileTab() {
         </div>
       ) : <Notice>No shows tracked yet.</Notice>}
 
+      <SectionLabel>ADD MORE</SectionLabel>
+      <div className="data-actions">
+        <button className="btn" onClick={() => openModal({ type: 'grid' })}>Browse popular titles</button>
+      </div>
+
+      <SectionLabel>APPEARANCE</SectionLabel>
+      <div className="seg" role="group" aria-label="Theme">
+        <button
+          className={'seg__opt' + (Store.theme() === 'dark' ? ' seg__opt--on' : '')}
+          onClick={() => Store.setTheme('dark')}
+        >Dark</button>
+        <button
+          className={'seg__opt' + (Store.theme() === 'light' ? ' seg__opt--on' : '')}
+          onClick={() => Store.setTheme('light')}
+        >Light</button>
+      </div>
+
       <SectionLabel>YOUR DATA</SectionLabel>
       <div className="data-actions">
         <button className="btn btn--primary" onClick={() => openModal({ type: 'import' })}>Import TV Time export</button>
