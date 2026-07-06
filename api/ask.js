@@ -54,9 +54,15 @@ export default async function handler(req, res) {
     res.status(405).json({ error: 'POST only' });
     return;
   }
-  const key = process.env.ANTHROPIC_API_KEY;
+  const key = (process.env.ANTHROPIC_API_KEY || '').trim();
   if (!key) {
     res.status(503).json({ error: 'not configured' });
+    return;
+  }
+  /* Catch a pasted curl command, quotes or stray whitespace early and
+     say so plainly. Never echo the value. */
+  if (!/^sk-ant-[A-Za-z0-9_-]+$/.test(key)) {
+    res.status(500).json({ error: 'The ANTHROPIC_API_KEY env var is not a bare key. It must be ONLY the string starting sk-ant-..., with no quotes, no "curl", no headers. Fix it in Vercel and redeploy.' });
     return;
   }
 
@@ -121,6 +127,8 @@ export default async function handler(req, res) {
       picks: Array.isArray(parsed.picks) ? parsed.picks.slice(0, 4) : []
     });
   } catch (e) {
-    res.status(500).json({ error: 'The ask service crashed: ' + ((e && e.message) || 'unknown error') });
+    const raw = String((e && e.message) || 'unknown error');
+    const safe = raw.replace(/sk-ant-[A-Za-z0-9_-]+/g, 'sk-ant-[redacted]').slice(0, 200);
+    res.status(500).json({ error: 'The ask service crashed: ' + safe });
   }
 }
