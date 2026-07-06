@@ -1,6 +1,11 @@
-# Browser checklist: Phase 2 proxy flip + voice + clickable providers (v2.3.0)
+# Browser checklist: Phase 2 proxy flip + voice + clickable providers (v2.3.1)
 
 Run on the deployed site after uploading this build. No storage migration; existing data is untouched. Precondition: /api/health returns {"ok":true,"llm":true,"tmdbProxy":true} (verified last session).
+
+## Do this FIRST: the direct proxy check (30 seconds, settles the v2.3.0 failure)
+- [ ] Open tellylog-3d2u.vercel.app/api/tmdb?p=configuration in the browser
+- [ ] Expected: a JSON blob of TMDB image sizes and base URLs. That means the proxy works end to end
+- [ ] If instead you see a message about "TMDB rejected the server key": the TMDB_API_KEY env var VALUE in Vercel is wrong (must be only the 32-character v3 key). Fix the value, redeploy, reopen the URL. The app falls back to your browser key in the meantime, so nothing is broken for you while you fix it
 
 ## The visitor-first-run test (the point of Phase 2)
 - [ ] Open the site in a PRIVATE/incognito window (no localStorage, no key). You should land straight on "What are you watching?" with a working search box. NO key-entry screen, ever
@@ -8,7 +13,7 @@ Run on the deployed site after uploading this build. No storage migration; exist
 - [ ] Add a show, open it, expand a season: episode names and stills load
 - [ ] Explore tab in incognito: trending shows and films load
 - [ ] Your normal window (with your old key still stored): everything works exactly as before. Your data is untouched
-- [ ] DevTools → Network (normal or incognito): metadata requests go to /api/tmdb/... and no request URL contains api_key
+- [ ] DevTools → Network (normal or incognito): metadata requests go to /api/tmdb?p=... and no request URL contains api_key
 
 ## Fallback (nothing to click, just understand it)
 - [ ] If the TMDB_API_KEY env var were ever removed, the app would fall back to browser keys and the key screen, exactly as pre-Phase-2. Do not test this by deleting the env var; the two new automated tests pin it

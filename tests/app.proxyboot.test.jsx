@@ -44,7 +44,7 @@ describe('App boot with the TMDB proxy', () => {
   it('no key + proxy live: visitor goes straight to first run, no key screen', async () => {
     globalThis.fetch = vi.fn((url) => {
       if (String(url) === '/api/health') return Promise.resolve(healthResponse({ llm: false, tmdbProxy: true }));
-      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ results: [] }) });
+      return Promise.resolve({ ok: true, status: 200, headers: { get: () => 'application/json' }, json: () => Promise.resolve({ results: [] }) });
     });
     const App = await freshApp();
     const el = await mount(App);

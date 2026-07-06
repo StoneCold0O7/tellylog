@@ -38,3 +38,21 @@ None.
 2. Phase 2b next session: owner to give the go and the show.genres decision (additive field recommended); scope is genre bar/pie charts, watch-time-over-months line chart, AI taste summary, durable rate limit
 3. Real TV Time export verification (~11,413 episodes), still the stated success criterion, still outstanding, and now also the gate for the ask box being meaningfully demoable
 4. Phase 3 after 2b: README + decision log as the portfolio deliverable, PWA manifest
+
+---
+
+## v2.3.1 hotfix: live proxy failure after the v2.3.0 deploy
+
+Deployed v2.3.0 broke Explore with "Could not reach TMDB" while /api/health kept working. Remote forensics from the session: GitHub repo verified at v2.3.0 with the correct client and an intact api/tmdb/[...path].js, no vercel.json, function content byte-identical to the build. So the failure was runtime, with two candidates that cannot be told apart without a live probe: (a) Vercel not routing requests into the bracket-named catch-all function in this non-framework Vite project, while the flat sibling /api/health routes fine, or (b) a TMDB_API_KEY env var value that exists (health only checks existence) but that TMDB rejects with 401, which the client collapsed into the generic error. [Certain about the observed facts, Guessing between the two causes]
+
+Fix eliminates both at once rather than betting on one:
+
+1. **Flat endpoint.** api/tmdb/[...path].js deleted, replaced by a plain api/tmdb.js taking the subpath as ?p=. One flat file, the exact routing mechanism of the proven /api/health, zero bracket-filename or catch-all behaviour left to go wrong. If health routes, this routes. [Certain]
+2. **Trust but verify.** The client no longer switches to proxy mode on the health boolean alone; it makes one real round trip (/api/tmdb?p=configuration, edge-cached an hour) and falls back to the direct browser-key path if that fails for ANY reason. A broken proxy can therefore never again take the app down for someone with a working key; visitors without a key see the key screen, which is the honest state. Pinned by a new test reproducing the exact live incident (health true, proxy dead, direct fallback with the stored key).
+3. **The 401 case names its own fix.** If TMDB rejects the server key, /api/tmdb now returns a plain-English owner-actionable message instead of forwarding TMDB's wording, mirroring the api/ask.js pattern from v2.2.0. Opening /api/tmdb?p=configuration in a browser settles cause (b) in one look.
+
+Tests 82 → 83 (vitest 15 → 16). Build clean. Schema untouched, ImportWizard untouched.
+
+## Deleted files (v2.3.1)
+
+- api/tmdb/[...path].js (and the now-empty api/tmdb folder)

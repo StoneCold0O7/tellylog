@@ -9,7 +9,7 @@ import { apiKey } from './store.js';
 import { checkHealth } from './ai.js';
 
 const BASE = 'https://api.themoviedb.org/3';
-const PROXY = '/api/tmdb/';
+const PROXY = '/api/tmdb';
 const IMG = 'https://image.tmdb.org/t/p/';
 const MODE_TIMEOUT_MS = 4000; // never hold first paint hostage to a slow probe
 
@@ -18,13 +18,26 @@ let inFlight = 0;
 const MAX_CONCURRENT = 4;
 const queue = [];
 
-/* 'proxy' | 'direct', decided once per page load. */
+/* 'proxy' | 'direct', decided once per page load. The health flag only
+   proves the env var exists, so proxy mode is TRUSTED only after one
+   real round trip succeeds (/api/tmdb?p=configuration, edge-cached).
+   Any failure of that probe, for any reason, falls back to the direct
+   browser-key path so a broken proxy can never take the app down for
+   someone with a working key. */
 let modePromise = null;
 export function ready() {
   if (modePromise) return modePromise;
   var probe = Promise.resolve()
     .then(function () { return checkHealth(); })
-    .then(function (h) { return h && h.tmdbProxy ? 'proxy' : 'direct'; })
+    .then(function (h) {
+      if (!h || !h.tmdbProxy) return 'direct';
+      return fetch(PROXY + '?p=configuration').then(function (res) {
+        if (!res.ok) return 'direct';
+        var ct = res.headers.get('content-type') || '';
+        if (ct.indexOf('application/json') === -1) return 'direct';
+        return res.json().then(function () { return 'proxy'; }, function () { return 'direct'; });
+      }, function () { return 'direct'; });
+    })
     .catch(function () { return 'direct'; });
   var clock = new Promise(function (resolve) {
     setTimeout(function () { resolve('direct'); }, MODE_TIMEOUT_MS);
@@ -67,11 +80,13 @@ function request(path, params) {
     var p = Object.assign({}, params);
     var url;
     if (mode === 'proxy') {
-      /* Server appends the key; never send one from the browser. */
+      /* Server appends the key; never send one from the browser. The
+         subpath travels as ?p= so the endpoint is one flat file with
+         the exact routing behaviour of the proven /api/health. */
       var qs = Object.keys(p).map(function (k) {
         return encodeURIComponent(k) + '=' + encodeURIComponent(p[k]);
       }).join('&');
-      url = PROXY + path.replace(/^\//, '') + (qs ? '?' + qs : '');
+      url = PROXY + '?p=' + encodeURIComponent(path.replace(/^\//, '')) + (qs ? '&' + qs : '');
       return fetchQueued(url, true);
     }
     var key = apiKey();
