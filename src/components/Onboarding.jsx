@@ -28,7 +28,7 @@ export default function Onboarding() {
 
   return (
     <div className="onboard">
-      <div className="brand brand--big">Log<span>line</span></div>
+      <div className="brand brand--big">Telly<span>Log</span></div>
       <p className="onboard__lede">Your own TV tracker. Runs in your browser, keeps your data local and imports your TV Time, Netflix, Letterboxd and IMDb history.</p>
       <ol className="onboard__steps">
         <li>Create a free account at <a href="https://www.themoviedb.org/signup" target="_blank" rel="noopener noreferrer">themoviedb.org</a></li>

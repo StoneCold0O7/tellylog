@@ -11,6 +11,7 @@ import MoviesTab from './MoviesTab.jsx';
 import ExploreTab from './ExploreTab.jsx';
 import ProfileTab from './ProfileTab.jsx';
 import ShowModal from './ShowModal.jsx';
+import TitleModal from './TitleModal.jsx';
 import SettingsModal from './SettingsModal.jsx';
 import ImportWizard from './ImportWizard.jsx';
 import OnboardingGrid from './OnboardingGrid.jsx';
@@ -66,6 +67,11 @@ export default function App() {
     }).catch(() => toast('Could not load that show.'));
   }, [toast]);
 
+  /* Preview a show or film without tracking it (Phase 1.6). */
+  const openPreview = useCallback((media, id) => {
+    setModal({ type: 'preview', media, id });
+  }, []);
+
   /* Storage-full errors from the store surface as toasts. */
   useEffect(() => { Store.setSaveErrorHandler(toast); }, [toast]);
 
@@ -104,13 +110,13 @@ export default function App() {
   }, [modal]);
 
   const hasKey = !!Store.apiKey();
-  const ctx = { go, toast, openShow, openModal: setModal, closeModal, moviesSub, setMoviesSub, offerGrid };
+  const ctx = { go, toast, openShow, openPreview, openModal: setModal, closeModal, moviesSub, setMoviesSub, offerGrid };
 
   return (
     <AppContext.Provider value={ctx}>
       {hasKey && (
         <header id="topbar" className="topbar">
-          <div className="brand">Log<span>line</span></div>
+          <div className="brand">Telly<span>Log</span></div>
         </header>
       )}
 
@@ -136,8 +142,9 @@ export default function App() {
 
       {modal && (
         <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}>
-          <div className={'modal ' + (modal.type === 'show' ? 'modal--show' : modal.type === 'grid' ? 'modal--grid' : 'modal--import')} role="dialog" aria-modal="true">
+          <div className={'modal ' + (modal.type === 'show' || modal.type === 'preview' ? 'modal--show' : modal.type === 'grid' ? 'modal--grid' : 'modal--import')} role="dialog" aria-modal="true">
             {modal.type === 'show' && <ShowModal id={modal.id} />}
+            {modal.type === 'preview' && <TitleModal media={modal.media} id={modal.id} />}
             {modal.type === 'settings' && <SettingsModal />}
             {modal.type === 'import' && <ImportWizard />}
             {modal.type === 'grid' && <OnboardingGrid />}

@@ -1,4 +1,4 @@
-/* Logline - /api/tmdb/*
+/* TellyLog - /api/tmdb/*
    Phase 2 scaffold: server-side TMDB proxy. Forwards any GET under
    /api/tmdb/... to api.themoviedb.org/3/... with the key from the
    TMDB_API_KEY env var appended server-side. The client still uses its

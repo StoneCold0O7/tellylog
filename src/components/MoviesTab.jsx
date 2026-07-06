@@ -6,7 +6,7 @@ import { useApp } from '../context.js';
 import { Poster, CheckBtn, EmptyState } from './shared.jsx';
 
 export default function MoviesTab() {
-  const { moviesSub: sub, setMoviesSub, go } = useApp();
+  const { moviesSub: sub, setMoviesSub, go, openPreview } = useApp();
   const st = Store.get();
   const all = Object.keys(st.movies).map((id) => st.movies[id]);
   const list = sub === 'watchlist'
@@ -43,9 +43,11 @@ export default function MoviesTab() {
         const meta = [U.fmtRuntime(m.runtime), m.genres].filter(Boolean).join(' • ');
         return (
           <article className="ep-row" key={m.id}>
-            <div className="ep-row__poster"><Poster path={m.poster} alt={m.title} /></div>
+            <button className="ep-row__poster" onClick={() => openPreview('movie', m.id)}><Poster path={m.poster} alt={m.title} /></button>
             <div className="ep-row__body">
-              <div className="ep-row__title">{m.title}</div>
+              <button className="ep-row__title title-link" onClick={() => openPreview('movie', m.id)}>
+                {m.title}<span className="title-link__chev" aria-hidden="true">›</span>
+              </button>
               <div className="ep-row__name">{meta}</div>
               {m.watchedAt ? <div className="ep-row__meta">Watched {U.fmtDate(m.watchedAt)}</div> : null}
             </div>

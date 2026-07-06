@@ -1,4 +1,4 @@
-/* Logline - tmdb.js
+/* TellyLog - tmdb.js
    Thin TMDB v3 client. In-memory cache + small concurrency limiter.
    ESM port: identical behaviour, key read from the store module. */
 import { apiKey } from './store.js';
@@ -86,6 +86,18 @@ export function tvRecommendations(id) {
 }
 export function movieDetails(id) {
   return request('/movie/' + id, {});
+}
+export function movieCredits(id) {
+  return request('/movie/' + id + '/credits', {});
+}
+export function movieProviders(id) {
+  return request('/movie/' + id + '/watch/providers', {});
+}
+export function movieVideos(id) {
+  return request('/movie/' + id + '/videos', {});
+}
+export function movieRecommendations(id) {
+  return request('/movie/' + id + '/recommendations', {});
 }
 export function trendingTV() {
   return request('/trending/tv/week', {});

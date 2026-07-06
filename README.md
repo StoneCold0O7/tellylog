@@ -1,4 +1,4 @@
-# Logline
+# TellyLog
 
 A self-hosted replacement for the TV Time app, built when that app announced its shutdown. Tracks TV shows episode by episode, keeps a film watchlist, shows upcoming episodes for tracked shows and rebuilds the classic TV Time profile stats (total TV time, episodes watched). Imports TV Time, Netflix, Letterboxd and IMDb exports so years of watch history are not lost.
 
@@ -44,13 +44,13 @@ Open Profile → Import TV Time export and pick any of these files. The wizard d
 
 **TV Time** (Settings → export, or via their support email). Full episode-level history with dates, with a column-mapping step before matching.
 
-**Netflix** (Account → Profile → Viewing activity → Download all). Netflix only exports episode *names*, not numbers, so Logline resolves each name against TMDB's episode list per season. Titles like "Dark: Season 1: Secrets" become tracked episodes; plain titles become films.
+**Netflix** (Account → Profile → Viewing activity → Download all). Netflix only exports episode *names*, not numbers, so TellyLog resolves each name against TMDB's episode list per season. Titles like "Dark: Season 1: Secrets" become tracked episodes; plain titles become films.
 
 **Letterboxd** (Settings → Data → Export). watched.csv logs films with dates, watchlist.csv fills the Films watchlist. Export years disambiguate remakes.
 
 **IMDb** (Your Ratings → Export). Films are logged as watched; TV series are added with no episodes marked because the export carries no episode-level data.
 
-**Logline backup** (.json) restores everything from another device. Backups made under the TellyLog name work identically.
+**TellyLog backup** (.json) restores everything from another device. Backups made under the short-lived Logline name work identically.
 
 Sample files for every source live in `sample-data/`.
 

@@ -1,4 +1,4 @@
-/* Logline - store.js
+/* TellyLog - store.js
    Single source of truth. Persists to localStorage.
    ESM port of the original: logic unchanged, plus a subscribe/emit
    layer so React can re-render on changes. */
@@ -326,7 +326,7 @@ export function exportJSON() {
 
 export function restoreJSON(text) {
   var obj = JSON.parse(text);
-  if (!obj || obj.version !== 1 || !obj.shows) throw new Error('Not a Logline backup file.');
+  if (!obj || obj.version !== 1 || !obj.shows) throw new Error('Not a TellyLog backup file.');
   state = obj;
   save();
 }
@@ -379,6 +379,20 @@ export function nudgePick(excludeId) {
     if (!best || rem < best.remaining) best = { show: sh, remaining: rem };
   });
   return best;
+}
+
+/* Archived shows, most recently active first. Used by the home
+   ARCHIVED section and the profile list view. */
+export function archivedShows() {
+  var out = [];
+  Object.keys(state.shows).forEach(function (id) {
+    var sh = state.shows[id];
+    if (sh.archived) out.push(sh);
+  });
+  out.sort(function (a, b) {
+    return (b.lastWatchedAt || b.added) - (a.lastWatchedAt || a.added);
+  });
+  return out;
 }
 
 /* Watched timestamps for one show as a {'s-e': ts} map. Built once per

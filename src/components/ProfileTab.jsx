@@ -1,5 +1,5 @@
 /* Profile tab: stats, poster strip, data actions. Mirrors renderProfile. */
-import React from 'react';
+import React, { useState } from 'react';
 import * as Store from '../lib/store.js';
 import * as TMDB from '../lib/tmdb.js';
 import * as U from '../lib/util.js';
@@ -7,7 +7,8 @@ import { useApp } from '../context.js';
 import { Poster, SectionLabel, Counter, Notice } from './shared.jsx';
 
 export default function ProfileTab() {
-  const { openShow, openModal, toast } = useApp();
+  const { openShow, openModal, toast, go, setMoviesSub } = useApp();
+  const [showView, setShowView] = useState('posters'); // 'posters' | 'list'
   const st = Store.stats();
   const shows = Object.keys(Store.get().shows).map((id) => Store.get().shows[id]);
   shows.sort((a, b) => (b.lastWatchedAt || b.added) - (a.lastWatchedAt || a.added));
@@ -17,7 +18,7 @@ export default function ProfileTab() {
     const blob = new Blob([Store.exportJSON()], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'logline-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+    a.download = 'tellylog-backup-' + new Date().toISOString().slice(0, 10) + '.json';
     a.click();
     URL.revokeObjectURL(a.href);
   }
@@ -59,14 +60,23 @@ export default function ProfileTab() {
             <Counter n={st.movieTime.hours} label="HOURS" />
           </div>
         </div>
-        <div className="stat-card">
+        <button className="stat-card stat-card--tap" onClick={() => { setMoviesSub('watched'); go('movies'); }}>
           <div className="stat-card__label">🎬 Films watched</div>
           <div className="stat-card__big">{U.fmtNumber(st.moviesWatched)}</div>
-        </div>
+          <div className="stat-card__hint">See the list ›</div>
+        </button>
       </div>
 
-      <SectionLabel>{'SHOWS (' + shows.length + ')'}</SectionLabel>
-      {shows.length ? (
+      <div className="section-row">
+        <SectionLabel>{'SHOWS (' + shows.length + ')'}</SectionLabel>
+        {shows.length > 0 && (
+          <div className="seg seg--mini" role="group" aria-label="Shows view">
+            <button className={'seg__opt' + (showView === 'posters' ? ' seg__opt--on' : '')} onClick={() => setShowView('posters')}>Posters</button>
+            <button className={'seg__opt' + (showView === 'list' ? ' seg__opt--on' : '')} onClick={() => setShowView('list')}>List</button>
+          </div>
+        )}
+      </div>
+      {shows.length === 0 ? <Notice>No shows tracked yet.</Notice> : showView === 'posters' ? (
         <div className="poster-strip">
           {shows.map((sh) => (
             <button className="poster-strip__item" key={sh.id} onClick={() => openShow(sh.id)}>
@@ -74,7 +84,26 @@ export default function ProfileTab() {
             </button>
           ))}
         </div>
-      ) : <Notice>No shows tracked yet.</Notice>}
+      ) : (
+        <div className="show-list">
+          {shows.map((sh) => (
+            <article className="ep-row" key={sh.id}>
+              <button className="ep-row__poster" onClick={() => openShow(sh.id)}>
+                <Poster path={sh.poster} alt={sh.name} />
+              </button>
+              <div className="ep-row__body">
+                <button className="ep-row__title title-link" onClick={() => openShow(sh.id)}>
+                  {sh.name}<span className="title-link__chev" aria-hidden="true">›</span>
+                </button>
+                <div className="ep-row__meta">
+                  {Store.watchedCount(sh)} of {Store.totalEpisodes(sh)} episodes
+                  {sh.archived ? <span className="chip chip--arch">ARCHIVED</span> : null}
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
 
       <SectionLabel>ADD MORE</SectionLabel>
       <div className="data-actions">
@@ -95,13 +124,13 @@ export default function ProfileTab() {
 
       <SectionLabel>YOUR DATA</SectionLabel>
       <div className="data-actions">
-        <button className="btn btn--primary" onClick={() => openModal({ type: 'import' })}>Import TV Time export</button>
+        <button className="btn btn--primary" onClick={() => openModal({ type: 'import' })}>Import watch history</button>
         <button className="btn btn--ghost" onClick={exportBackup}>Download backup (JSON)</button>
         <button className="btn btn--ghost" onClick={() => openModal({ type: 'import' })}>Restore backup</button>
         <button className="btn btn--ghost" onClick={() => openModal({ type: 'settings' })}>TMDB API key</button>
         <button className="btn btn--danger" onClick={clearAll}>Delete everything</button>
       </div>
-      <p className="fineprint">All data is stored in this browser only. Nothing is uploaded anywhere. Metadata comes from TMDB.</p>
+      <p className="fineprint">Import accepts TV Time, Netflix, Letterboxd and IMDb exports plus TellyLog backups. All data is stored in this browser only. Nothing is uploaded anywhere. Metadata comes from TMDB.</p>
     </>
   );
 }

@@ -277,4 +277,30 @@ t('librarySummary: empty store gives empty string', () => {
   assert.strictEqual(Store.librarySummary(), '');
 });
 
+t('archivedShows returns only archived, most recent first', () => {
+  Store.clearAll();
+  Store.addShow(fakeDetails(31, 'ArchA', { 1: 4 }, 40));
+  Store.addShow(fakeDetails(32, 'ArchB', { 1: 4 }, 40));
+  Store.addShow(fakeDetails(33, 'Live', { 1: 4 }, 40));
+  Store.setArchived(31, true);
+  Store.setArchived(32, true);
+  Store.markEpisode(31, 1, 1, true, 2000); // ArchA more recent
+  Store.markEpisode(32, 1, 1, true, 1000);
+  const list = Store.archivedShows();
+  assert.strictEqual(list.length, 2);
+  assert.strictEqual(list[0].name, 'ArchA');
+  assert.strictEqual(list[1].name, 'ArchB');
+});
+
+t('zero-episode season: markSeason is a no-op and nextEpisodeFor skips it', () => {
+  Store.clearAll();
+  Store.addShow(fakeDetails(41, 'ThePit', { 1: 2, 3: 0 }, 40));
+  const sh = Store.get().shows[41];
+  Store.markSeason(41, 3, 0, true);
+  assert.strictEqual(Store.watchedCount(sh), 0);
+  Store.markEpisode(41, 1, 1, true);
+  Store.markEpisode(41, 1, 2, true);
+  assert.strictEqual(Store.nextEpisodeFor(sh), null); // season 3 has nothing to watch
+});
+
 console.log('\nAll ' + passed + ' tests passed.');

@@ -32,22 +32,37 @@ function Season({ sh, s, count, watchedMap, defaultOpen }) {
     }
   }, [open, eps, err, sh.id, s]);
 
+  const unaired = !count; /* 0 episodes = announced but not released */
+
   return (
     <div className="season">
-      <button className="season__head" onClick={() => setOpen(!open)}>
-        <span>Season {s}</span>
-        <span className="season__count">{seenS} / {count}</span>
-        <span className="season__minibar" aria-hidden="true">
-          <span style={{ width: (count ? Math.round(100 * seenS / count) : 0) + '%' }}></span>
-        </span>
-        <span className="season__chev">▾</span>
-      </button>
+      <div className="season__head">
+        <button className="season__head-main" onClick={() => setOpen(!open)} aria-expanded={open}>
+          <span>Season {s}</span>
+          {unaired
+            ? <span className="season__count season__count--tba">Not aired yet</span>
+            : <span className="season__count">{seenS} / {count}</span>}
+          <span className="season__minibar" aria-hidden="true">
+            <span style={{ width: (count ? Math.round(100 * seenS / count) : 0) + '%' }}></span>
+          </span>
+          <span className="season__chev">▾</span>
+        </button>
+        {!unaired && (
+          <CheckBtn
+            small
+            checked={seenS === count}
+            onClick={() => Store.markSeason(sh.id, s, count, seenS !== count)}
+          />
+        )}
+      </div>
       {open && (
         <div className="season__body">
-          <button className="btn btn--tiny" onClick={() => Store.markSeason(sh.id, s, count, seenS !== count)}>
-            {seenS === count ? 'Unmark season' : 'Mark season watched'}
-          </button>
-          <div className="season__eps">
+          {unaired ? <Notice>No episodes have aired yet. This season unlocks when TMDB lists released episodes.</Notice> : (
+            <button className="btn btn--tiny" onClick={() => Store.markSeason(sh.id, s, count, seenS !== count)}>
+              {seenS === count ? 'Unmark season' : 'Mark season watched'}
+            </button>
+          )}
+          {!unaired && <div className="season__eps">
             {err ? <Notice>Could not load episodes.</Notice> :
               eps === null ? <SkeletonRows n={Math.min(count || 4, 5)} /> :
               eps.map((ep) => {
@@ -74,7 +89,7 @@ function Season({ sh, s, count, watchedMap, defaultOpen }) {
                   </div>
                 );
               })}
-          </div>
+          </div>}
         </div>
       )}
     </div>
@@ -99,7 +114,7 @@ function NextUp({ sh }) {
 }
 
 export default function ShowModal({ id }) {
-  const { closeModal, toast, openShow } = useApp();
+  const { closeModal, toast, openShow, openPreview } = useApp();
   const sh = Store.get().shows[id];
 
   /* Enrichment payloads. undefined=loading, null=failed, object=ready. */
@@ -243,13 +258,13 @@ export default function ShowModal({ id }) {
           <SectionLabel>MORE LIKE THIS · FROM TMDB</SectionLabel>
           <div className="poster-strip">
             {recs.map((r) => (
-              <button className="poster-strip__item rec" key={r.id} onClick={() => openShow(r.id)}>
+              <button className="poster-strip__item rec" key={r.id} onClick={() => openPreview('tv', r.id)}>
                 <FadeImg className="thumb" src={TMDB.img(r.poster_path, 'w342')} alt={r.name} />
                 <span className="rec__name">{r.name}</span>
               </button>
             ))}
           </div>
-          <div className="fineprint">Tapping a title starts tracking it.</div>
+          <div className="fineprint">Tap a title to preview it. Nothing is added until you say so.</div>
         </div>
       )}
     </>

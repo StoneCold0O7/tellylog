@@ -1,4 +1,4 @@
-/* Logline - styles.css (Phase 1 redesign: "Tonight-first")
+/* TellyLog - styles.css (Phase 1 redesign: "Tonight-first")
    Two themes driven by CSS custom properties on <html data-theme>.
    Dark is default. Media surfaces (backdrop heroes) stay cinematic
    dark in BOTH themes; only UI chrome flips. Amber is the brand. */
@@ -763,3 +763,64 @@ a { color: var(--link); }
 .askbox__row .search { flex: 1; }
 .askbox__go { flex-shrink: 0; }
 .askbox__answer { font-size: 14px; color: var(--ink); margin: 12px 2px 10px; }
+
+/* ---------- Phase 1.6 polish ---------- */
+
+/* Clickable titles: underlined, chevroned, slightly lifted so it is
+   obvious they open the detail view. */
+.title-link {
+  background: none; border: 0; padding: 0; margin: 0;
+  font: inherit; color: var(--ink); text-align: left; cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.title-link:hover { text-decoration-color: var(--accent); }
+.title-link__chev { color: var(--accent); margin-left: 3px; font-weight: 700; }
+.card__title.title-link { font-size: 13px; font-weight: 600; line-height: 1.25; }
+
+/* Season header: expand button + whole-season tick side by side. */
+.season__head { padding: 0 14px 0 0; }
+.season__head-main {
+  flex: 1; display: flex; align-items: center; gap: 10px;
+  padding: 12px 0 12px 14px; font: inherit; font-weight: 700;
+  background: none; border: 0; color: inherit; cursor: pointer; text-align: left;
+}
+.season__count--tba { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-left: auto; }
+
+/* Home ARCHIVED section, collapsed by default. */
+.arch { margin-top: 28px; }
+.arch__toggle {
+  background: none; border: 0; padding: 6px 0; cursor: pointer;
+  font-family: var(--font-mono); font-size: 12px; letter-spacing: .12em;
+  color: var(--muted); display: flex; align-items: center; gap: 6px;
+}
+.arch__chev { transition: transform .15s ease; display: inline-block; }
+.arch__chev--open { transform: rotate(180deg); }
+
+/* Profile: section header row with the Posters/List toggle. */
+.section-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.seg--mini .seg__opt { padding: 4px 10px; font-size: 11px; }
+.chip--arch {
+  margin-left: 8px; font-size: 9px; letter-spacing: .1em;
+  padding: 2px 6px; vertical-align: 1px;
+  color: var(--muted); border: 1px solid var(--line);
+}
+.stat-card--tap { cursor: pointer; text-align: left; font: inherit; color: inherit; }
+.stat-card__hint { margin-top: 6px; font-size: 11px; color: var(--accent); }
+
+/* Preview modal extras. */
+.preview__seasons { display: flex; flex-direction: column; gap: 2px; }
+.preview__season {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 8px 2px; border-bottom: 1px solid var(--line);
+}
+.preview__season-name { font-weight: 600; font-size: 14px; }
+.preview__season-meta { font-family: var(--font-mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+.preview__owned { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  .arch__chev { transition: none; }
+}

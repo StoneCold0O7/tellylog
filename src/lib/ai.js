@@ -1,4 +1,4 @@
-/* Logline - ai.js
+/* TellyLog - ai.js
    Phase 2 scaffold client. Talks to the Vercel serverless functions in
    /api. Every call fails silently to null: if the functions are not
    deployed or the ANTHROPIC_API_KEY env var is missing, the ask box
@@ -34,9 +34,13 @@ export function ask(question, library) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ question: question, library: library })
   }).then(function (res) {
-    if (res.status === 503) throw new Error('The ask service is not configured yet.');
-    if (!res.ok) throw new Error('The ask service had a problem. Try again.');
-    return res.json();
+    if (res.ok) return res.json();
+    /* Pull the server's explanation through so failures are debuggable
+       from the UI (bad key, no credit, rate limit and so on). */
+    return res.json().catch(function () { return {}; }).then(function (data) {
+      if (res.status === 503) throw new Error('The ask service is not configured yet.');
+      throw new Error(data.error || 'The ask service had a problem (HTTP ' + res.status + '). Try again.');
+    });
   }).then(function (data) {
     return {
       answer: String(data.answer || ''),

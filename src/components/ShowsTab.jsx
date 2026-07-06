@@ -50,6 +50,36 @@ function StaleCard({ entry }) {
   );
 }
 
+function ArchivedSection() {
+  const { openShow, toast } = useApp();
+  const [open, setOpen] = useState(false);
+  const list = Store.archivedShows();
+  if (list.length === 0) return null;
+  return (
+    <div className="arch">
+      <button className="arch__toggle" onClick={() => setOpen(!open)} aria-expanded={open}>
+        ARCHIVED ({list.length}) <span className={'arch__chev' + (open ? ' arch__chev--open' : '')}>▾</span>
+      </button>
+      {open && list.map((sh) => (
+        <article className="ep-row" key={sh.id}>
+          <button className="ep-row__poster" onClick={() => openShow(sh.id)}>
+            <Poster path={sh.poster} alt={sh.name} />
+          </button>
+          <div className="ep-row__body">
+            <button className="ep-row__title title-link" onClick={() => openShow(sh.id)}>
+              {sh.name}<span className="title-link__chev" aria-hidden="true">›</span>
+            </button>
+            <div className="ep-row__meta">{Store.remainingCount(sh)} left · still counts in your stats</div>
+          </div>
+          <div className="ep-row__actions">
+            <button className="btn btn--tiny" onClick={() => { Store.setArchived(sh.id, false); toast('Back in your queue.'); }}>Unarchive</button>
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
 export default function ShowsTab() {
   const { openShow, go } = useApp();
   const [, setTick] = useState(0);
@@ -109,6 +139,8 @@ export default function ShowsTab() {
           ))}
         </>
       )}
+
+      <ArchivedSection />
     </>
   );
 }

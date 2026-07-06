@@ -1,4 +1,4 @@
-/* Logline - util.js
+/* TellyLog - util.js
    Pure helper functions. No DOM access. Exported to Node for unit tests. */
 
   /* ---------- CSV ---------- */

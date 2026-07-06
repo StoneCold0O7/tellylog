@@ -8,7 +8,7 @@ import { useApp } from '../context.js';
 import { Poster } from './shared.jsx';
 
 export default function ResultCard({ item, onAdded }) {
-  const { toast } = useApp();
+  const { toast, openPreview } = useApp();
   const [busy, setBusy] = useState(false);
   const isTV = item.media_type === 'tv' || item.first_air_date !== undefined;
   const id = item.id;
@@ -43,7 +43,9 @@ export default function ResultCard({ item, onAdded }) {
           : <button className="add-btn" onClick={add} disabled={busy} aria-label="Add">＋</button>}
       </div>
       <div className="card__body">
-        <div className="card__title">{title || ''}</div>
+        <button className="card__title title-link" onClick={() => openPreview(isTV ? 'tv' : 'movie', id)}>
+          {title || ''}<span className="title-link__chev" aria-hidden="true">›</span>
+        </button>
         <div className="card__meta">{isTV ? 'TV' : 'Film'}{year ? ' • ' + year : ''}</div>
       </div>
     </article>
