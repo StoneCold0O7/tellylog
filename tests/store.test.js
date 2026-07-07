@@ -303,4 +303,123 @@ t('zero-episode season: markSeason is a no-op and nextEpisodeFor skips it', () =
   assert.strictEqual(Store.nextEpisodeFor(sh), null); // season 3 has nothing to watch
 });
 
+
+/* ---------- Phase 2b: genres, backfill, chart selectors ---------- */
+
+function fakeDetailsG(id, name, seasonCounts, runtime, genreNames) {
+  const d = fakeDetails(id, name, seasonCounts, runtime);
+  d.genres = (genreNames || []).map((n, i) => ({ id: i + 1, name: n }));
+  return d;
+}
+
+t('genreList: persisted on addShow as full name array', () => {
+  Store.clearAll();
+  Store.addShow(fakeDetailsG(300, 'GShow', { 1: 10 }, 30, ['Drama', 'Crime', 'Thriller']));
+  assert.deepStrictEqual(Store.get().shows[300].genreList, ['Drama', 'Crime', 'Thriller']);
+});
+
+t('genreList: movies keep the legacy top-2 string AND gain the full array', () => {
+  Store.clearAll();
+  Store.addMovie({ id: 400, title: 'GFilm', runtime: 120, genres: [{ id: 1, name: 'Action' }, { id: 2, name: 'Sci-Fi' }, { id: 3, name: 'Adventure' }] });
+  const mv = Store.get().movies[400];
+  assert.strictEqual(mv.genres, 'Action, Sci-Fi');
+  assert.deepStrictEqual(mv.genreList, ['Action', 'Sci-Fi', 'Adventure']);
+});
+
+t('refreshShowCache: keeps genreList when a fresh payload lacks genres', () => {
+  Store.clearAll();
+  Store.addShow(fakeDetailsG(301, 'Keep', { 1: 5 }, 30, ['Comedy']));
+  Store.refreshShowCache(301, fakeDetails(301, 'Keep', { 1: 5 }, 30));
+  assert.deepStrictEqual(Store.get().shows[301].genreList, ['Comedy']);
+});
+
+t('genreBackfillList + setGenres: finds pre-2.4 records and fills them', () => {
+  Store.clearAll();
+  Store.addShow(fakeDetailsG(302, 'HasG', { 1: 5 }, 30, ['Drama']));
+  Store.addShow(fakeDetails(303, 'NoG', { 1: 5 }, 30));
+  delete Store.get().shows[303].genreList; // simulate a pre-2.4 record
+  Store.addMovie({ id: 401, title: 'OldFilm', runtime: 100 });
+  delete Store.get().movies[401].genreList;
+  const list = Store.genreBackfillList();
+  assert.deepStrictEqual(list, [{ kind: 'tv', id: 303 }, { kind: 'movie', id: 401 }]);
+  Store.setGenres('tv', 303, ['Western']);
+  Store.setGenres('movie', 401, ['Horror']);
+  assert.strictEqual(Store.genreBackfillList().length, 0);
+});
+
+t('restore of an old backup without genreList still works and flags backfill', () => {
+  Store.clearAll();
+  Store.addShow(fakeDetails(304, 'OldBackupShow', { 1: 3 }, 30));
+  const backup = JSON.parse(Store.exportJSON());
+  delete backup.shows[304].genreList; // a backup written before v2.4.0
+  Store.restoreJSON(JSON.stringify(backup));
+  assert.strictEqual(Store.get().shows[304].name, 'OldBackupShow');
+  assert.deepStrictEqual(Store.genreBackfillList(), [{ kind: 'tv', id: 304 }]);
+});
+
+t('genreMinutes: weights by watched minutes, not title count', () => {
+  Store.clearAll();
+  // 200-episode sitcom at 20 min, all watched: 4000 Comedy minutes
+  Store.addShow(fakeDetailsG(310, 'BigSitcom', { 1: 200 }, 20, ['Comedy']));
+  Store.markSeason(310, 1, 200, true);
+  // 6-episode miniseries at 60 min, all watched: 360 Drama minutes
+  Store.addShow(fakeDetailsG(311, 'Mini', { 1: 6 }, 60, ['Drama']));
+  Store.markSeason(311, 1, 6, true);
+  const g = Store.genreMinutes(false);
+  assert.strictEqual(g.rows[0].genre, 'Comedy');
+  assert.strictEqual(g.rows[0].minutes, 4000);
+  assert.strictEqual(g.rows[1].minutes, 360);
+});
+
+t('genreMinutes: multi-genre titles credit every genre; primaryOnly credits the first', () => {
+  Store.clearAll();
+  Store.addShow(fakeDetailsG(312, 'Both', { 1: 10 }, 30, ['Crime', 'Drama']));
+  Store.markSeason(312, 1, 10, true); // 300 minutes
+  const all = Store.genreMinutes(false);
+  assert.strictEqual(all.rows.length, 2);
+  assert.strictEqual(all.rows[0].minutes, 300);
+  assert.strictEqual(all.rows[1].minutes, 300);
+  const prim = Store.genreMinutes(true);
+  assert.strictEqual(prim.rows.length, 1);
+  assert.strictEqual(prim.rows[0].genre, 'Crime');
+});
+
+t('genreMinutes: unwatched films excluded, missing genreList counted as unattributed', () => {
+  Store.clearAll();
+  Store.addMovie({ id: 402, title: 'Seen', runtime: 90, genres: [{ id: 1, name: 'Horror' }] });
+  Store.setMovieWatched(402, true);
+  Store.addMovie({ id: 403, title: 'Unseen', runtime: 90, genres: [{ id: 1, name: 'Horror' }] });
+  Store.addShow(fakeDetails(313, 'NoGenres', { 1: 2 }, 50));
+  delete Store.get().shows[313].genreList;
+  Store.markSeason(313, 1, 2, true); // 100 unattributed minutes
+  const g = Store.genreMinutes(false);
+  assert.strictEqual(g.rows.length, 1);
+  assert.strictEqual(g.rows[0].minutes, 90);
+  assert.strictEqual(g.unattributed, 100);
+  assert.strictEqual(g.total, 190);
+});
+
+t('monthlyMinutes: buckets by month, fills gaps with zero, includes films', () => {
+  Store.clearAll();
+  Store.addShow(fakeDetailsG(314, 'Timed', { 1: 5 }, 40, ['Drama']));
+  const jan = new Date(2025, 0, 15).getTime();
+  const mar = new Date(2025, 2, 10).getTime();
+  Store.markEpisode(314, 1, 1, true, jan);
+  Store.markEpisode(314, 1, 2, true, jan);
+  Store.markEpisode(314, 1, 3, true, mar);
+  Store.addMovie({ id: 404, title: 'MarFilm', runtime: 120, genres: [] });
+  Store.setMovieWatched(404, true, mar);
+  const months = Store.monthlyMinutes();
+  assert.strictEqual(months.length, 3);
+  assert.deepStrictEqual(months.map((m) => m.key), ['2025-01', '2025-02', '2025-03']);
+  assert.strictEqual(months[0].minutes, 80);
+  assert.strictEqual(months[1].minutes, 0);
+  assert.strictEqual(months[2].minutes, 160);
+});
+
+t('monthlyMinutes: empty store gives empty array', () => {
+  Store.clearAll();
+  assert.deepStrictEqual(Store.monthlyMinutes(), []);
+});
+
 console.log('\nAll ' + passed + ' tests passed.');

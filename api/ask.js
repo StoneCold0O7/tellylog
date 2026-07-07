@@ -14,25 +14,69 @@ const SYSTEM = [
   'fences, no preamble, shaped exactly like:',
   '{"answer":"one or two conversational sentences",',
   ' "picks":[{"title":"...","year":"2021","mediaType":"tv|movie","reason":"one short sentence"}]}',
-  'Give 2 to 4 picks. Prefer titles NOT already in the library unless',
+  'Give 5 to 7 picks: 7 when the library is rich, never fewer than 5.',
+  'If the library is thin, still give 5 but let the answer say the',
+  'picks lean broad. Prefer titles NOT already in the library unless',
   'the user asks about their own list. Ground reasons in what the',
   'library shows they actually watch.'
 ].join(' ');
 
-/* Best-effort per-IP rate limit: 10 asks per 10 minutes. In-memory,
-   so it resets on cold starts and is per-instance; it deters casual
-   abuse of a live key, not a determined attacker. A durable limit
-   (KV-backed) stays on the Phase 2 list. */
+const SYSTEM_TASTE = [
+  'You summarise a person\'s TV and film taste from their watch',
+  'library. Reply with ONLY a JSON object, no markdown fences, no',
+  'preamble, shaped exactly like: {"summary":"..."}. The summary is',
+  '2 to 3 warm, specific sentences in second person ("you watch',
+  'mostly..."), grounded ONLY in what the library actually contains.',
+  'Name real patterns (genres, eras, formats, completion habits).',
+  'Never invent titles. If the library is nearly empty, say the',
+  'picture is still forming.'
+].join(' ');
+
+/* Rate limiting: 10 asks per 10 minutes per IP.
+   Durable path: an Upstash Redis REST store (Vercel Marketplace).
+   Reads either env naming Vercel uses (UPSTASH_REDIS_REST_URL/TOKEN
+   or the legacy KV_REST_API_URL/TOKEN). One pipelined INCR+EXPIRE per
+   request; the count survives cold starts and is shared across
+   instances. Fallback path: the old in-memory map, used whenever the
+   env vars are absent or the store errors, so the feature can never
+   go down because the limiter did. */
 const RL_WINDOW_MS = 10 * 60 * 1000;
 const RL_MAX = 10;
+
+const KV_URL = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL || '';
+const KV_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || '';
+
 const hits = new Map();
-function rateLimited(ip) {
+function rateLimitedMemory(ip) {
   const now = Date.now();
   const arr = (hits.get(ip) || []).filter((t) => now - t < RL_WINDOW_MS);
   if (arr.length >= RL_MAX) { hits.set(ip, arr); return true; }
   arr.push(now);
   hits.set(ip, arr);
   return false;
+}
+
+async function rateLimited(ip) {
+  if (!KV_URL || !KV_TOKEN) return rateLimitedMemory(ip);
+  try {
+    const bucket = Math.floor(Date.now() / RL_WINDOW_MS);
+    const key = 'rl:' + ip + ':' + bucket;
+    const resp = await fetch(KV_URL.replace(/\/$/, '') + '/pipeline', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + KV_TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify([
+        ['INCR', key],
+        ['EXPIRE', key, String(Math.ceil(RL_WINDOW_MS / 1000))]
+      ])
+    });
+    if (!resp.ok) return rateLimitedMemory(ip);
+    const out = await resp.json();
+    const count = Array.isArray(out) && out[0] && typeof out[0].result === 'number' ? out[0].result : null;
+    if (count === null) return rateLimitedMemory(ip);
+    return count > RL_MAX;
+  } catch (e) {
+    return rateLimitedMemory(ip);
+  }
 }
 
 /* Map an Anthropic error response to a message the owner can act on.
@@ -61,15 +105,20 @@ export default async function handler(req, res) {
   }
 
   const body = req.body || {};
+  const mode = body.mode === 'taste' ? 'taste' : 'ask';
   const question = String(body.question || '').slice(0, MAX_QUESTION).trim();
   const library = String(body.library || '').slice(0, MAX_LIBRARY);
-  if (!question) {
+  if (mode === 'ask' && !question) {
     res.status(400).json({ error: 'question required' });
+    return;
+  }
+  if (mode === 'taste' && !library) {
+    res.status(400).json({ error: 'library required' });
     return;
   }
 
   const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
-  if (rateLimited(ip)) {
+  if (await rateLimited(ip)) {
     res.status(429).json({ error: 'Too many asks from this address. Try again in a few minutes.' });
     return;
   }
@@ -84,11 +133,13 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 700,
-        system: SYSTEM,
+        max_tokens: mode === 'taste' ? 300 : 1400,
+        system: mode === 'taste' ? SYSTEM_TASTE : SYSTEM,
         messages: [{
           role: 'user',
-          content: 'My library:\n' + (library || '(empty)') + '\n\nQuestion: ' + question
+          content: mode === 'taste'
+            ? 'My library:\n' + library + '\n\nSummarise my taste.'
+            : 'My library:\n' + (library || '(empty)') + '\n\nQuestion: ' + question
         }]
       })
     });
@@ -112,13 +163,18 @@ export default async function handler(req, res) {
       parsed = JSON.parse(text);
     } catch (e) {
       /* Model ignored the JSON instruction: still return something usable. */
-      res.status(200).json({ answer: text.slice(0, 600), picks: [] });
+      if (mode === 'taste') res.status(200).json({ summary: text.slice(0, 600) });
+      else res.status(200).json({ answer: text.slice(0, 600), picks: [] });
       return;
     }
 
+    if (mode === 'taste') {
+      res.status(200).json({ summary: String(parsed.summary || '').slice(0, 800) });
+      return;
+    }
     res.status(200).json({
       answer: String(parsed.answer || ''),
-      picks: Array.isArray(parsed.picks) ? parsed.picks.slice(0, 4) : []
+      picks: Array.isArray(parsed.picks) ? parsed.picks.slice(0, 7) : []
     });
   } catch (e) {
     res.status(500).json({ error: 'The ask service crashed: ' + ((e && e.message) || 'unknown error') });

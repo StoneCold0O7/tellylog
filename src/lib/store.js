@@ -100,7 +100,11 @@ function showFromDetails(d) {
     lastWatchedAt: null,
     added: Date.now(),
     archived: false,
-    detailsFetchedAt: Date.now()
+    detailsFetchedAt: Date.now(),
+    /* Phase 2b additive field: full TMDB genre names, used by the
+       profile charts. Old records lack it; genreBackfillList() finds
+       them and the profile fills them in once. */
+    genreList: (d.genres || []).map(function (g) { return g.name; })
   };
 }
 
@@ -118,6 +122,7 @@ export function refreshShowCache(id, details) {
   sh.name = fresh.name; sh.poster = fresh.poster; sh.backdrop = fresh.backdrop;
   sh.status = fresh.status; sh.network = fresh.network; sh.avgRuntime = fresh.avgRuntime;
   sh.seasons = fresh.seasons; sh.nextEp = fresh.nextEp; sh.lastEp = fresh.lastEp;
+  if (fresh.genreList && fresh.genreList.length) sh.genreList = fresh.genreList;
   sh.detailsFetchedAt = Date.now();
   save();
 }
@@ -294,6 +299,9 @@ function movieFromDetails(d) {
     poster: d.poster_path || '',
     runtime: d.runtime || 0,
     genres: (d.genres || []).map(function (g) { return g.name; }).slice(0, 2).join(', '),
+    /* Phase 2b: the display string above is lossy (top 2, joined), so
+       charts use this full list. Additive; old records lack it. */
+    genreList: (d.genres || []).map(function (g) { return g.name; }),
     releaseDate: d.release_date || '',
     watchlist: true,
     watchedAt: null,
@@ -436,6 +444,102 @@ export function librarySummary(maxShows, maxMovies) {
 }
 
 export function get() { return state; }
+
+/* ---------- Phase 2b: genre backfill + chart data ----------
+   Charts weight by WATCHED MINUTES, not title count, so a 200-episode
+   sitcom and a 6-episode miniseries are not treated as equals. Items
+   still missing genreList contribute to `unattributed` so the charts
+   never silently misrepresent coverage. */
+
+export function genreBackfillList() {
+  var out = [];
+  Object.keys(state.shows).forEach(function (id) {
+    if (!Array.isArray(state.shows[id].genreList)) out.push({ kind: 'tv', id: state.shows[id].id });
+  });
+  Object.keys(state.movies).forEach(function (id) {
+    if (!Array.isArray(state.movies[id].genreList)) out.push({ kind: 'movie', id: state.movies[id].id });
+  });
+  return out;
+}
+
+export function setGenres(kind, id, names) {
+  var rec = kind === 'movie' ? state.movies[id] : state.shows[id];
+  if (!rec) return;
+  rec.genreList = (names || []).map(String);
+  save();
+}
+
+function showMinutes(sh) {
+  return watchedCount(sh) * (sh.avgRuntime || DEFAULT_RUNTIME);
+}
+
+/* rows: [{genre, minutes}] desc. Multi-genre titles contribute their
+   full minutes to EVERY genre they carry, so rows overlap by design
+   and must never be summed to a total. primaryOnly=true credits only
+   the first TMDB genre, which is the honest basis for a pie. */
+export function genreMinutes(primaryOnly) {
+  var map = {};
+  var unattributed = 0;
+  var total = 0;
+  function credit(list, minutes) {
+    if (!minutes) return;
+    total += minutes;
+    if (!Array.isArray(list) || list.length === 0) { unattributed += minutes; return; }
+    var names = primaryOnly ? [list[0]] : list;
+    names.forEach(function (g) { map[g] = (map[g] || 0) + minutes; });
+  }
+  Object.keys(state.shows).forEach(function (id) {
+    credit(state.shows[id].genreList, showMinutes(state.shows[id]));
+  });
+  Object.keys(state.movies).forEach(function (id) {
+    var mv = state.movies[id];
+    if (mv.watchedAt) credit(mv.genreList, mv.runtime || 100);
+  });
+  var rows = Object.keys(map).map(function (g) { return { genre: g, minutes: map[g] }; });
+  rows.sort(function (a, b) { return b.minutes - a.minutes; });
+  return { rows: rows, unattributed: unattributed, total: total };
+}
+
+function monthKey(ts) {
+  var d = new Date(ts);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
+/* Contiguous months from the earliest logged watch to the latest,
+   zero-filled, minutes from episode log timestamps plus film
+   watchedAt. Timestamps are LOGGING time (imports carry the export's
+   real dates; a bulk season tick lands in the month it was ticked). */
+export function monthlyMinutes() {
+  var map = {};
+  state.log.forEach(function (l) {
+    if (!l.ts) return;
+    var sh = state.shows[l.showId];
+    if (!sh) return;
+    var k = monthKey(l.ts);
+    map[k] = (map[k] || 0) + (sh.avgRuntime || DEFAULT_RUNTIME);
+  });
+  Object.keys(state.movies).forEach(function (id) {
+    var mv = state.movies[id];
+    if (mv.watchedAt) {
+      var k2 = monthKey(mv.watchedAt);
+      map[k2] = (map[k2] || 0) + (mv.runtime || 100);
+    }
+  });
+  var keys = Object.keys(map).sort();
+  if (keys.length === 0) return [];
+  var out = [];
+  var first = keys[0].split('-').map(Number);
+  var last = keys[keys.length - 1].split('-').map(Number);
+  var y = first[0], m = first[1];
+  while (y < last[0] || (y === last[0] && m <= last[1])) {
+    var k3 = y + '-' + String(m).padStart(2, '0');
+    out.push({ key: k3, minutes: map[k3] || 0 });
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  return out;
+}
+
 export function setApiKey(k) { state.settings.apiKey = k.trim(); save(); }
 export function apiKey() { return state.settings.apiKey; }
 export function theme() { return state.settings.theme === 'light' ? 'light' : 'dark'; }

@@ -5,6 +5,7 @@ import * as TMDB from '../lib/tmdb.js';
 import * as U from '../lib/util.js';
 import { useApp } from '../context.js';
 import { Poster, SectionLabel, Counter, Notice } from './shared.jsx';
+import InsightsSection from './InsightsSection.jsx';
 
 export default function ProfileTab() {
   const { openShow, openModal, toast, go, setMoviesSub } = useApp();
@@ -66,6 +67,8 @@ export default function ProfileTab() {
           <div className="stat-card__hint">See the list ›</div>
         </button>
       </div>
+
+      <InsightsSection />
 
       <div className="section-row">
         <SectionLabel>{'SHOWS (' + shows.length + ')'}</SectionLabel>
@@ -131,6 +134,7 @@ export default function ProfileTab() {
         <button className="btn btn--danger" onClick={clearAll}>Delete everything</button>
       </div>
       <p className="fineprint">Import accepts TV Time, Netflix, Letterboxd and IMDb exports plus TellyLog backups. All data is stored in this browser only. Nothing is uploaded anywhere. Metadata comes from TMDB.</p>
+      <p className="fineprint">TellyLog is designed and built by Anmol. The code, the decision log and every reversal along the way are public: <a className="credit-link" href="https://github.com/StoneCold0O7/tellylog" target="_blank" rel="noreferrer">github.com/StoneCold0O7/tellylog</a></p>
     </>
   );
 }

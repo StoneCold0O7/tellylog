@@ -44,7 +44,7 @@ export function ask(question, library) {
   }).then(function (data) {
     return {
       answer: String(data.answer || ''),
-      picks: Array.isArray(data.picks) ? data.picks.slice(0, 4).map(function (p) {
+      picks: Array.isArray(data.picks) ? data.picks.slice(0, 7).map(function (p) {
         return {
           title: String(p.title || ''),
           year: p.year ? String(p.year) : '',
@@ -53,5 +53,24 @@ export function ask(question, library) {
         };
       }) : []
     };
+  });
+}
+
+/* One-shot taste summary for the Profile page. Same endpoint, taste
+   mode, so it shares the key gate and the rate limiter. Resolves to
+   { summary } or rejects with a message safe to show. */
+export function tasteSummary(library) {
+  return fetch('/api/ask', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode: 'taste', library: library })
+  }).then(function (res) {
+    if (res.ok) return res.json();
+    return res.json().catch(function () { return {}; }).then(function (data) {
+      if (res.status === 503) throw new Error('The summary service is not configured yet.');
+      throw new Error(data.error || 'The summary service had a problem (HTTP ' + res.status + '). Try again.');
+    });
+  }).then(function (data) {
+    return { summary: String(data.summary || '') };
   });
 }

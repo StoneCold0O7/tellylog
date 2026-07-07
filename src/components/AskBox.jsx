@@ -3,7 +3,7 @@
    the deployed site is completely unchanged until the Vercel env vars
    exist (see VERCEL-SETUP.md). The question plus a compact library
    summary go to /api/ask; the reply comes back as a short answer and
-   up to four picks, each resolved against TMDB so they render as the
+   five to seven picks (scaled to library size server-side), each resolved against TMDB so they render as the
    same add-able cards used everywhere else. */
 import React, { useEffect, useState } from 'react';
 import * as AI from '../lib/ai.js';
