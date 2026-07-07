@@ -15,14 +15,25 @@ import { GenreBars, GenreDonut, ActivityLine, fmtHours } from './Charts.jsx';
 
 function TitleList({ items, caption }) {
   if (!items || items.length === 0) return <Notice>Nothing attributed here yet.</Notice>;
+  /* v2.6.0 fix, owner-reported: a film is a film, never "1 ep". The
+     label is kind-aware and a rewatch count shows as a ×N chip (genre
+     drill-downs only; the month list omits it because rewatches carry
+     no dates and never land in a month). */
+  function label(t) {
+    const parts = [];
+    if (t.kind === 'movie') parts.push('film');
+    else if (t.count) parts.push(t.count + (t.count === 1 ? ' ep' : ' eps'));
+    parts.push(fmtHours(t.minutes));
+    return parts.join(' · ');
+  }
   return (
     <div className="drill">
       <div className="drill__caption">{caption}</div>
       <ul className="drill__list">
         {items.slice(0, 12).map((t) => (
           <li className="drill__row" key={t.kind + t.title}>
-            <span className="drill__name">{t.kind === 'movie' ? '🎬 ' : '📺 '}{t.title}</span>
-            <span className="drill__mins">{t.count ? t.count + ' ep · ' : ''}{fmtHours(t.minutes)}</span>
+            <span className="drill__name">{t.kind === 'movie' ? '🎬 ' : '📺 '}{t.title}{t.rewatch > 1 ? <span className="chip chip--rewatch">×{t.rewatch}</span> : null}</span>
+            <span className="drill__mins">{label(t)}</span>
           </li>
         ))}
         {items.length > 12 && <li className="drill__row drill__row--more">+ {items.length - 12} more</li>}
@@ -83,9 +94,15 @@ export default function StatsModal() {
 
   return (
     <>
-      <div className="modal__hero modal__hero--plain">
+      {/* v2.6.0: restyled after an owner-reported light-mode bug. The
+          old --plain hero kept .modal__hero's on-media (near-white)
+          text on a light surface, so the title merged into the
+          background. This variant colours with theme ink over an
+          accent gradient, so it reads in BOTH themes by construction. */}
+      <div className="modal__hero modal__hero--stats">
         <button className="modal__close" onClick={closeModal} aria-label="Close">✕</button>
-        <h2 className="modal__title">Your stats</h2>
+        <div className="stats-hero__eyebrow">YOUR LIBRARY IN NUMBERS</div>
+        <h2 className="modal__title">📊 Your stats</h2>
         <div className="modal__meta">Tap a bar, a slice or a point on the line to see the titles behind it.</div>
       </div>
 
@@ -103,7 +120,7 @@ export default function StatsModal() {
                 <div className="chart-card__title">Hours by genre</div>
                 <GenreBars rows={all.rows} selected={barPick} onSelect={(g) => { setBarPick(g); setDonutPick(null); }} />
                 {barPick && <TitleList items={Store.genreTitles(barPick, false)} caption={'Titles counted under ' + barPick} />}
-                <div className="fineprint">A title counts toward every genre it carries, so bars overlap and are not shares of a whole.{coverage < 100 ? ' Genre data covers ' + coverage + '% of watch time so far.' : ''}</div>
+                <div className="fineprint">A title counts toward every genre it carries, so bars overlap and are not shares of a whole. A rewatch count multiplies a title's minutes.{coverage < 100 ? ' Genre data covers ' + coverage + '% of watch time so far.' : ''}</div>
               </div>
             )}
 
@@ -112,7 +129,7 @@ export default function StatsModal() {
                 <div className="chart-card__title">Watch time by primary genre</div>
                 <GenreDonut rows={primary.rows} selected={donutPick} onSelect={(g) => { setDonutPick(g); setBarPick(null); }} />
                 {donutPick && <TitleList items={Store.genreTitles(donutPick, true)} caption={'Titles whose primary genre is ' + donutPick} />}
-                <div className="fineprint">Each title counted once, under its first TMDB genre, so slices sum to 100%.</div>
+                <div className="fineprint">Each title counted once, under its first TMDB genre, so slices sum to 100%. A rewatch count multiplies a title's minutes.</div>
               </div>
             )}
 
@@ -121,7 +138,7 @@ export default function StatsModal() {
                 <div className="chart-card__title">Watch activity by month</div>
                 <ActivityLine months={months} selectedKey={monthPick} onSelect={setMonthPick} />
                 {monthPick && <TitleList items={Store.monthTitles(monthPick)} caption={'Logged in ' + monthPick} />}
-                <div className="fineprint">Based on when episodes were logged. Imports keep their original dates; bulk season ticks land in the month you ticked them.</div>
+                <div className="fineprint">Based on when episodes were logged. Imports keep their original dates; bulk season ticks land in the month you ticked them. Rewatch counts carry no dates, so they are not shown here.</div>
               </div>
             )}
           </>

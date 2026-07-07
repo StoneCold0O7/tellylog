@@ -2,7 +2,7 @@
 
 Purpose of this file: cold-start ANY new Claude session (any model) with the full essence of this project. It is the stable half of a two-file pattern. This file changes rarely; the volatile session state lives in HANDOVER-NEXT.md, regenerated at every session close. A new session needs three things: this file, the latest HANDOVER-NEXT.md and the current codebase zip.
 
-Last regenerated: 7 July 2026, at the close of the v2.5.0 build (interactive stats, TV watchlist, profile images).
+Last regenerated: 8 July 2026, at the close of the v2.6.0 build (Session C: Explore rails, voice insights, rewatch counter, title ratings).
 
 ---
 
@@ -41,11 +41,11 @@ Style rules for ALL output: no em dashes, no ", and" (no Oxford comma), no fille
 Root: `{ version:1, settings, shows, movies, log }`.
 
 - settings: `{ apiKey, profileName, theme ('dark'|'light'), gridSeen, avatar? (compressed JPEG data URL, v2.5.0), cover? (same, v2.5.0) }`
-- shows[id]: `{ id, name, poster, backdrop, status, network, avgRuntime, seasons {n: epCount}, nextEp|null, lastEp|null, watched {s:[e,...]}, lastWatchedAt, added, archived, keptAt?, watchlist? (v2.5.0, saved-not-started, auto-clears on first watched episode), detailsFetchedAt, genreList? }`
-- movies[id]: `{ id, title, poster, runtime, genres (legacy top-2 display string), genreList? (full array, v2.4.0), releaseDate, watchlist, watchedAt|null, added }`
+- shows[id]: `{ id, name, poster, backdrop, status, network, avgRuntime, seasons {n: epCount}, nextEp|null, lastEp|null, watched {s:[e,...]}, lastWatchedAt, added, archived, keptAt?, watchlist? (v2.5.0, saved-not-started, auto-clears on first watched episode), detailsFetchedAt, genreList?, rewatchCount? (v2.6.0, total watch-throughs, absent = 1), rating? (v2.6.0, 1-5) }`
+- movies[id]: `{ id, title, poster, runtime, genres (legacy top-2 display string), genreList? (full array, v2.4.0), releaseDate, watchlist, watchedAt|null, added, rewatchCount? (v2.6.0), rating? (v2.6.0) }`
 - log: `[{ showId, s, e, ts }]` one entry per watched episode, ts is logging time (imports carry the export's real dates)
 
-Schema law: additive fields only, never rename or repurpose, restore of OLD backups must always work. Additive fields to date: show.keptAt, settings.theme, settings.gridSeen (Phase 1), show.genreList and movie.genreList (Phase 2b, backfilled once from TMDB when missing; since v2.5.0 the backfill runs inside the Stats modal, not on the Profile page), show.watchlist, settings.avatar and settings.cover (v2.5.0). The taste summary cache lives in a SEPARATE key `tellylog:taste:v1` because it is derived data and does not belong in backups.
+Schema law: additive fields only, never rename or repurpose, restore of OLD backups must always work. Additive fields to date: show.keptAt, settings.theme, settings.gridSeen (Phase 1), show.genreList and movie.genreList (Phase 2b, backfilled once from TMDB when missing; since v2.5.0 the backfill runs inside the Stats modal, not on the Profile page), show.watchlist, settings.avatar and settings.cover (v2.5.0), rewatchCount and rating on both shows and movies (v2.6.0). Derived-data caches live in SEPARATE keys because they do not belong in backups: `tellylog:taste:v1` (taste summary) and `tellylog:rails:v1` (Explore rails, including their TMDB-resolved cards).
 
 ## 5. Build history, decisions and reversals
 
@@ -71,22 +71,23 @@ Schema law: additive fields only, never rename or repurpose, restore of OLD back
 
 **v2.5.0 (current).** Charts moved off the Profile into a Stats modal behind one button (owner ruling: Profile stays scannable) and made interactive: click a bar, slice, legend row or month point to see the contributing titles with minutes; hover effects are cosmetic and click is the mechanism because the phone is the primary device. Bar and donut drill-downs legitimately differ for the same genre (full versus primary crediting) and caption their methods. The genre backfill moved into the modal, so TMDB is only hit when stats are opened. Still zero chart libraries. TV watchlist added after the audit REJECTED the owner's proposal to remove archive: watchlist means not started, archive means started and shelved, different states; both now exist. show.watchlist is additive, saved shows live in a WATCHLIST section on the Shows tab, are excluded from Tonight/Up next/nudge and the flag auto-clears on the first watched episode. librarySummary tags them for future AI grounding. The taste summary's manual Refresh button was removed (pulled forward from the README session): the summary already auto-refreshed on library change, so the button only rerolled identical input at API cost. Profile and cover images added as additive settings fields with client-side canvas compression as a hard requirement (avatar 256px, cover 1280x512, ~300KB post-compression cap) because raw base64 photos would blow the localStorage quota and bloat every backup.
 
+**v2.6.0 / Session C (current).** Built on REAL data: the manual grounding campaign was confirmed done and Upstash provisioned before this session opened. Explore gained "Because you watched X" rails: anchors chosen locally by rewatch-weighted watched minutes (the LLM can produce a weak pick, never a fake premise), ONE serverless call (mode:'rails' on /api/ask, shared limiter), strict JSON sanitised on both sides, cached with the resolved TMDB cards in tellylog:rails:v1 keyed on the library hash, empty results never cached. Thin-library honesty is structural (a note plus per-rail basis rendered by the UI). Voice insights shipped DETERMINISTIC per the standing audit position: insightsQA.js answers stats questions locally, zero LLM calls, unmatched questions get a help line, never a guess; the mic auto-answers because answers are free here. Rewatch counter (owner feature request): title-level total watch-throughs multiplying TIME in genre charts and headline totals, never distinct counts, never the month line (no dates), captions disclose both the multiplier and the ticked-episodes-only honesty limit. Title ratings 1-5 built after the audit REJECTED the owner's episode-level proposal (no consumer, near-zero coverage economics, reverses a Phase 1.5 deferral without justification); owner accepted title-level, which feeds librarySummary so taste and rails read loved versus merely finished. Two owner-reported bugs fixed: the stats header was illegible in light mode (on-media text over a light surface; new ink-on-accent-wash hero variant) and films rendered as "1 ep" in the month drill-down (labels now kind-aware). YOUR DATA moved behind one button into a modal, matching the stats pattern; Delete everything is no longer permanently exposed. 122 tests green.
+
 ## 6. Rejected directions, one list (the README's raw material)
 
-Supabase/auth/accounts, embeddings recommender rail, Whisper voice, native iOS build (PWA is the path), Kino rename, per-provider deep links, voice auto-submit, prompt caching, lazy genre backfill, watermark-as-proof, archive removal (watchlist added instead; they are different states), floating SVG tooltips (click-selected detail instead, touch-first), letting the grounding gate lapse with the dead TV Time export (replaced by the manual top-50 campaign). Each has documented reasoning in the SESSION-LOG files.
+Supabase/auth/accounts, embeddings recommender rail, Whisper voice, native iOS build (PWA is the path), Kino rename, per-provider deep links, voice auto-submit, prompt caching, lazy genre backfill, watermark-as-proof, archive removal (watchlist added instead; they are different states), floating SVG tooltips (click-selected detail instead, touch-first), letting the grounding gate lapse with the dead TV Time export (replaced by the manual top-50 campaign, since completed), episode-level ratings (title-level built instead: no consumer and near-zero coverage economics at episode granularity), LLM-routed stats questions (answered deterministically at zero cost instead). Each has documented reasoning in the SESSION-LOG files.
 
 ## 7. Current state and the gates
 
-- Live: tellylog-3d2u.vercel.app, v2.5.0, proxy mode verified, ask box live, 109 tests green at last build. Exact current state: see HANDOVER-NEXT.md, which supersedes this section whenever they disagree.
-- GATE for the LinkedIn post and public launch: real watch history. The TV Time export (~11,413 episodes) is confirmed DEAD; the replacement gate is the manual top-50 logging campaign (owner action, roughly an evening) plus an optional GDPR data request to TV Time. AI surfaces are demo theatre without real data, by the owner's own success criterion, and the next session builds more AI surface.
-- Owner-side pending: provision the Upstash/KV store for the durable rate limit; confirm Anthropic credit stays topped up.
+- Live: tellylog-3d2u.vercel.app, v2.6.0 pending deploy at this regeneration, 122 tests green at last build. Exact current state: see HANDOVER-NEXT.md, which supersedes this section whenever they disagree.
+- The grounding gate is SATISFIED: the manual logging campaign is done (owner confirmed, Session C opener) and the rails were built on real data. The GDPR data request to TV Time remains an optional enrichment, not a gate.
+- Owner-side done: Upstash provisioned, so the durable rate limiter is active. Still owner-side: keep Anthropic credit topped up.
 
 ## 8. What remains
 
-Two build sessions remain, in the owner's reordered sequence:
-- Session C (next): Explore "because you watched X" recommendation rails, ONE LLM call returning all rails as JSON, cached outside the schema like the taste summary, refreshed only on library-hash change. GATED on the manual top-50 grounding campaign. Decision box: voice-driven Profile insights (audit position: deterministic queries answered locally, never via the LLM).
+ONE build session remains:
 - Session A / Phase 3 (final): README and decision log as the PRIMARY portfolio deliverable (SESSION-LOG*.md and PHASE1-NOTES.md are the raw material), a colophon page telling the build story naming the Claude-directed method explicitly (owner ruling), PWA manifest plus service worker for installability.
-After both: the LinkedIn post, gated on real data being in place.
+After it: the LinkedIn post. Its data gate is already satisfied.
 
 ## 9. How to run a session (for a fresh Claude)
 

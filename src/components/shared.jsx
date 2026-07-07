@@ -164,3 +164,22 @@ export function apiErrorText(err) {
 export function Notice({ children }) {
   return <div className="notice">{children}</div>;
 }
+
+/* v2.6.0: title-level star rating (episode-level rejected in the
+   Session C audit). Tap the current value again to clear. Feeds
+   librarySummary so the taste summary and the Explore rails can tell
+   loved from merely finished. */
+export function Stars({ value, onSet, label }) {
+  return (
+    <div className="stars" role="group" aria-label={label || 'Your rating'}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button
+          key={n}
+          className={'stars__b' + (n <= value ? ' stars__b--on' : '')}
+          aria-label={n + (n === 1 ? ' star' : ' stars') + (n === value ? ', tap to clear' : '')}
+          onClick={() => onSet(n === value ? 0 : n)}
+        >{n <= value ? '★' : '☆'}</button>
+      ))}
+    </div>
+  );
+}

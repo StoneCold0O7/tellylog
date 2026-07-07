@@ -11,7 +11,7 @@ import * as Store from '../lib/store.js';
 import * as TMDB from '../lib/tmdb.js';
 import * as U from '../lib/util.js';
 import { useApp } from '../context.js';
-import { Notice, SectionLabel, FadeImg, SkeletonLines, CheckBtn } from './shared.jsx';
+import { Notice, SectionLabel, FadeImg, SkeletonLines, CheckBtn, Stars } from './shared.jsx';
 
 export default function TitleModal({ media, id }) {
   const { closeModal, openShow, openPreview, toast } = useApp();
@@ -137,6 +137,20 @@ export default function TitleModal({ media, id }) {
           )
         )}
       </div>
+
+      {/* v2.6.0: film-level rewatch count + rating, watched films
+          only, mirroring the show tracker. */}
+      {!isTV && trackedMovie && trackedMovie.watchedAt ? (
+        <div className="modal__owner-row modal__owner-row--pad">
+          <div className="rewatch" role="group" aria-label="Times watched">
+            <span className="rewatch__label">Watched</span>
+            <button className="rewatch__btn" onClick={() => Store.setRewatchCount('movie', id, Store.rewatchOf(trackedMovie) - 1)} disabled={Store.rewatchOf(trackedMovie) <= 1} aria-label="Fewer times">−</button>
+            <span className="rewatch__n">×{Store.rewatchOf(trackedMovie)}</span>
+            <button className="rewatch__btn" onClick={() => Store.setRewatchCount('movie', id, Store.rewatchOf(trackedMovie) + 1)} aria-label="More times">+</button>
+          </div>
+          <Stars value={trackedMovie.rating || 0} onSet={(n) => Store.setRating('movie', id, n)} label={'Your rating of ' + (title || 'this film')} />
+        </div>
+      ) : null}
 
       <div className="modal__sections">
         {details === undefined ? <SkeletonLines n={3} /> :

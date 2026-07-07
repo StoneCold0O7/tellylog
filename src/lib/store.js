@@ -305,7 +305,7 @@ export function stats() {
     showCount++;
     var c = watchedCount(sh);
     episodes += c;
-    tvMinutes += c * (sh.avgRuntime || DEFAULT_RUNTIME);
+    tvMinutes += c * (sh.avgRuntime || DEFAULT_RUNTIME) * rewatchOf(sh); /* v2.6.0: time only; the episode COUNT stays distinct episodes */
   });
   var moviesWatched = 0;
   var movieMinutes = 0;
@@ -313,7 +313,7 @@ export function stats() {
     var mv = state.movies[id];
     if (mv.watchedAt) {
       moviesWatched++;
-      movieMinutes += mv.runtime || 100;
+      movieMinutes += (mv.runtime || 100) * rewatchOf(mv); /* v2.6.0: time only */
     }
   });
   return {
@@ -464,13 +464,22 @@ export function librarySummary(maxShows, maxMovies) {
     if (sh.status) bits.push(sh.status);
     if (sh.archived) bits.push('dropped');
     if (sh.watchlist && seen === 0) bits.push('on watchlist, not started');
+    /* v2.6.0: rewatch + rating tags ground the taste summary and the
+       Explore rails in strength of signal, not just presence */
+    if (rewatchOf(sh) > 1) bits.push('watched ' + rewatchOf(sh) + ' times through');
+    if (sh.rating) bits.push('rated ' + sh.rating + '/5');
     lines.push('- ' + bits.join(', '));
   });
   var watched = [];
   var wishlist = [];
   Object.keys(state.movies).forEach(function (id) {
     var mv = state.movies[id];
-    if (mv.watchedAt) watched.push(mv.title);
+    if (mv.watchedAt) {
+      var tags = [];
+      if (mv.rating) tags.push(mv.rating + '/5');
+      if (rewatchOf(mv) > 1) tags.push('watched ' + rewatchOf(mv) + ' times');
+      watched.push(mv.title + (tags.length ? ' (' + tags.join(', ') + ')' : ''));
+    }
     else if (mv.watchlist) wishlist.push(mv.title);
   });
   var out = '';
@@ -507,7 +516,66 @@ export function setGenres(kind, id, names) {
 }
 
 function showMinutes(sh) {
-  return watchedCount(sh) * (sh.avgRuntime || DEFAULT_RUNTIME);
+  /* v2.6.0: the rewatch count multiplies chart minutes. Honesty limit,
+     on the record: only TICKED episodes multiply. Half a show ticked
+     with a count of 3 credits that half three times, because no
+     per-episode rewatch record exists. Captioned in the stats modal. */
+  return watchedCount(sh) * (sh.avgRuntime || DEFAULT_RUNTIME) * rewatchOf(sh);
+}
+
+/* ---------- v2.6.0: rewatch counter + title ratings ----------
+   Both additive, both title-level by owner ruling (episode-level
+   ratings rejected in the Session C audit: no consumer, near-zero
+   coverage economics). rewatchCount is total watch-throughs; absent
+   means 1 and the field is deleted at 1 so old backups stay clean.
+   rating is 1-5; setting 0 clears. Rewatches carry no dates, so the
+   monthly activity chart NEVER sees them; only genre charts and the
+   headline time totals do. Distinct episode and film COUNTS are never
+   multiplied, only time, so "Films watched: 47" stays 47 films. */
+export function rewatchOf(item) {
+  var n = item && item.rewatchCount;
+  return typeof n === 'number' && n > 1 ? Math.min(50, Math.floor(n)) : 1;
+}
+
+export function setRewatchCount(kind, id, n) {
+  var item = kind === 'movie' ? state.movies[id] : state.shows[id];
+  if (!item) return;
+  n = Math.floor(Number(n) || 1);
+  if (n <= 1) delete item.rewatchCount;
+  else item.rewatchCount = Math.min(50, n);
+  save();
+}
+
+export function setRating(kind, id, n) {
+  var item = kind === 'movie' ? state.movies[id] : state.shows[id];
+  if (!item) return;
+  n = Math.floor(Number(n) || 0);
+  if (n < 1 || n > 5) delete item.rating;
+  else item.rating = n;
+  save();
+}
+
+/* v2.6.0: local anchor selection for the Explore rails. The LLM never
+   picks anchors; it only fills picks under anchors chosen HERE from
+   real watch data, so a hallucinating model can produce a bad pick but
+   never a fake "because you watched" premise. Shows first (by watched
+   minutes, rewatch-weighted), then one film, 4 anchors maximum per the
+   3-4 rail ruling. */
+export function railAnchors() {
+  var anchors = [];
+  var shows = Object.keys(state.shows).map(function (id) { return state.shows[id]; })
+    .filter(function (sh) { return watchedCount(sh) > 0; })
+    .sort(function (a, b) { return showMinutes(b) - showMinutes(a); });
+  shows.slice(0, 3).forEach(function (sh) {
+    anchors.push({ title: sh.name, kind: 'tv' });
+  });
+  var films = Object.keys(state.movies).map(function (id) { return state.movies[id]; })
+    .filter(function (mv) { return !!mv.watchedAt; })
+    .sort(function (a, b) {
+      return (rewatchOf(b) - rewatchOf(a)) || ((b.rating || 0) - (a.rating || 0)) || ((b.watchedAt || 0) - (a.watchedAt || 0));
+    });
+  if (films.length) anchors.push({ title: films[0].title, kind: 'movie' });
+  return anchors;
 }
 
 /* rows: [{genre, minutes}] desc. Multi-genre titles contribute their
@@ -530,7 +598,7 @@ export function genreMinutes(primaryOnly) {
   });
   Object.keys(state.movies).forEach(function (id) {
     var mv = state.movies[id];
-    if (mv.watchedAt) credit(mv.genreList, mv.runtime || 100);
+    if (mv.watchedAt) credit(mv.genreList, (mv.runtime || 100) * rewatchOf(mv));
   });
   var rows = Object.keys(map).map(function (g) { return { genre: g, minutes: map[g] }; });
   rows.sort(function (a, b) { return b.minutes - a.minutes; });
@@ -548,18 +616,18 @@ function monthKey(ts) {
    first, so the two lists legitimately differ for the same genre. */
 export function genreTitles(genre, primaryOnly) {
   var out = [];
-  function consider(list, minutes, title, kind) {
+  function consider(list, minutes, title, kind, count, rewatch) {
     if (!minutes || !Array.isArray(list) || list.length === 0) return;
     var names = primaryOnly ? [list[0]] : list;
-    if (names.indexOf(genre) !== -1) out.push({ title: title, minutes: minutes, kind: kind });
+    if (names.indexOf(genre) !== -1) out.push({ title: title, minutes: minutes, kind: kind, count: count, rewatch: rewatch });
   }
   Object.keys(state.shows).forEach(function (id) {
     var sh = state.shows[id];
-    consider(sh.genreList, showMinutes(sh), sh.name, 'tv');
+    consider(sh.genreList, showMinutes(sh), sh.name, 'tv', watchedCount(sh), rewatchOf(sh));
   });
   Object.keys(state.movies).forEach(function (id) {
     var mv = state.movies[id];
-    if (mv.watchedAt) consider(mv.genreList, mv.runtime || 100, mv.title, 'movie');
+    if (mv.watchedAt) consider(mv.genreList, (mv.runtime || 100) * rewatchOf(mv), mv.title, 'movie', 0, rewatchOf(mv));
   });
   out.sort(function (a, b) { return b.minutes - a.minutes; });
   return out;

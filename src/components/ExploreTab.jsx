@@ -8,6 +8,7 @@ import { useApp } from '../context.js';
 import { SectionLabel, Notice, apiErrorText, SkeletonCards } from './shared.jsx';
 import ResultCard from './ResultCard.jsx';
 import AskBox from './AskBox.jsx';
+import RailsSection from './RailsSection.jsx';
 import MicButton from './MicButton.jsx';
 
 export default function ExploreTab() {
@@ -79,6 +80,10 @@ export default function ExploreTab() {
             </>
           )}
       </div>
+
+      {/* v2.6.0: personalised rails render BELOW trending as one
+          scrolling page, per the brief. */}
+      <RailsSection onAdded={offerGrid} />
     </>
   );
 }

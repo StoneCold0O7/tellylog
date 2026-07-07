@@ -16,6 +16,7 @@ import SettingsModal from './SettingsModal.jsx';
 import ImportWizard from './ImportWizard.jsx';
 import OnboardingGrid from './OnboardingGrid.jsx';
 import StatsModal from './StatsModal.jsx';
+import DataModal from './DataModal.jsx';
 import { IconTv, IconCalendar, IconFilm, IconSearch, IconUser } from './Icons.jsx';
 
 const TABS = ['shows', 'upcoming', 'movies', 'explore', 'profile'];
@@ -171,6 +172,7 @@ export default function App() {
             {modal.type === 'import' && <ImportWizard />}
             {modal.type === 'grid' && <OnboardingGrid />}
             {modal.type === 'stats' && <StatsModal />}
+            {modal.type === 'data' && <DataModal />}
           </div>
         </div>
       )}

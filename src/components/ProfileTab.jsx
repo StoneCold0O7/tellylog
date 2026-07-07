@@ -6,6 +6,7 @@ import * as U from '../lib/util.js';
 import { useApp } from '../context.js';
 import { Poster, SectionLabel, Counter, Notice } from './shared.jsx';
 import InsightsSection from './InsightsSection.jsx';
+import StatsAsk from './StatsAsk.jsx';
 
 export default function ProfileTab() {
   const { openShow, openModal, toast, go, setMoviesSub } = useApp();
@@ -52,22 +53,6 @@ export default function ProfileTab() {
       reader.readAsDataURL(file);
     };
     input.click();
-  }
-
-  function exportBackup() {
-    const blob = new Blob([Store.exportJSON()], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'tellylog-backup-' + new Date().toISOString().slice(0, 10) + '.json';
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }
-
-  function clearAll() {
-    if (confirm('Delete every show, film and stat stored in this browser? Download a backup first if in doubt.')) {
-      Store.clearAll();
-      toast('All data deleted.');
-    }
   }
 
   return (
@@ -122,6 +107,8 @@ export default function ProfileTab() {
       </div>
 
       <InsightsSection />
+
+      <StatsAsk />
 
       <div className="section-row">
         <SectionLabel>{'SHOWS (' + shows.length + ')'}</SectionLabel>
@@ -178,15 +165,13 @@ export default function ProfileTab() {
         >Light</button>
       </div>
 
+      {/* v2.6.0: the data actions moved into their own modal, same
+          opt-in pattern as stats, on the owner's ruling. */}
       <SectionLabel>YOUR DATA</SectionLabel>
       <div className="data-actions">
-        <button className="btn btn--primary" onClick={() => openModal({ type: 'import' })}>Import watch history</button>
-        <button className="btn btn--ghost" onClick={exportBackup}>Download backup (JSON)</button>
-        <button className="btn btn--ghost" onClick={() => openModal({ type: 'import' })}>Restore backup</button>
-        <button className="btn btn--ghost" onClick={() => openModal({ type: 'settings' })}>TMDB API key</button>
-        <button className="btn btn--danger" onClick={clearAll}>Delete everything</button>
+        <button className="btn" onClick={() => openModal({ type: 'data' })}>🗂️ Manage your data</button>
       </div>
-      <p className="fineprint">Import accepts TV Time, Netflix, Letterboxd and IMDb exports plus TellyLog backups. All data is stored in this browser only. Nothing is uploaded anywhere. Metadata comes from TMDB.</p>
+      <p className="fineprint">All data is stored in this browser only. Nothing is uploaded anywhere. Metadata comes from TMDB.</p>
       <p className="fineprint">TellyLog is designed and built by Anmol. The code, the decision log and every reversal along the way are public: <a className="credit-link" href="https://github.com/StoneCold0O7/tellylog" target="_blank" rel="noreferrer">github.com/StoneCold0O7/tellylog</a></p>
     </>
   );

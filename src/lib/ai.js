@@ -74,3 +74,41 @@ export function tasteSummary(library) {
     return { summary: String(data.summary || '') };
   });
 }
+
+/* v2.6.0: one-shot Explore rails. Same endpoint, rails mode, so it
+   shares the key gate and the rate limiter. anchors come from
+   Store.railAnchors(), never from the model. Resolves to
+   { rails:[{anchor, kind, basis, picks:[{title, year, mediaType,
+   reason}]}], note } or rejects with a message safe to show. */
+export function rails(library, anchors) {
+  return fetch('/api/ask', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode: 'rails', library: library, anchors: anchors })
+  }).then(function (res) {
+    if (res.ok) return res.json();
+    return res.json().catch(function () { return {}; }).then(function (data) {
+      if (res.status === 503) throw new Error('The recommendation service is not configured yet.');
+      throw new Error(data.error || 'The recommendation service had a problem (HTTP ' + res.status + '). Try again.');
+    });
+  }).then(function (data) {
+    return {
+      note: String(data.note || ''),
+      rails: Array.isArray(data.rails) ? data.rails.slice(0, 4).map(function (r) {
+        return {
+          anchor: String(r.anchor || ''),
+          kind: r.kind === 'movie' ? 'movie' : 'tv',
+          basis: String(r.basis || ''),
+          picks: Array.isArray(r.picks) ? r.picks.slice(0, 6).map(function (p) {
+            return {
+              title: String(p.title || ''),
+              year: p.year ? String(p.year) : '',
+              mediaType: p.mediaType === 'movie' ? 'movie' : 'tv',
+              reason: String(p.reason || '')
+            };
+          }) : []
+        };
+      }) : []
+    };
+  });
+}

@@ -534,4 +534,103 @@ t('setAvatar and setCover persist and clear; old backups without them restore cl
   assert.strictEqual(Store.cover(), '');
 });
 
+
+/* ---------- v2.6.0: rewatch counter, ratings, rail anchors ---------- */
+
+t('rewatch multiplies TIME in stats but never the distinct counts', () => {
+  Store.clearAll();
+  Store.addShow(fakeDetails(60, 'Loop', { 1: 10 }, 30));
+  Store.markSeason(60, 1, 10, true);
+  Store.setRewatchCount('tv', 60, 3);
+  const st = Store.stats();
+  assert.strictEqual(st.episodes, 10);            // distinct episodes untouched
+  assert.strictEqual(st.tvMinutes, 10 * 30 * 3);  // time triples
+});
+
+t('rewatch multiplies genre chart minutes for shows and films', () => {
+  Store.clearAll();
+  Store.addShow(fakeDetails(61, 'GenShow', { 1: 5 }, 40));
+  Store.setGenres('tv', 61, ['Drama']);
+  Store.markSeason(61, 1, 5, true);
+  Store.setRewatchCount('tv', 61, 2);
+  Store.addMovie({ id: 62, title: 'GenFilm', runtime: 100, genres: [{ name: 'Drama' }], release_date: '2020-01-01' });
+  Store.setMovieWatched(62, true);
+  Store.setRewatchCount('movie', 62, 4);
+  const g = Store.genreMinutes(false);
+  const drama = g.rows.find((r) => r.genre === 'Drama');
+  assert.strictEqual(drama.minutes, 5 * 40 * 2 + 100 * 4);
+  const titles = Store.genreTitles('Drama', false);
+  assert.strictEqual(titles.find((x) => x.kind === 'movie').rewatch, 4);
+});
+
+t('rewatch never touches monthly minutes (no dates to land in)', () => {
+  const before = Store.monthlyMinutes().reduce((a, b) => a + b.minutes, 0);
+  Store.setRewatchCount('tv', 61, 5);
+  const after = Store.monthlyMinutes().reduce((a, b) => a + b.minutes, 0);
+  assert.strictEqual(before, after);
+});
+
+t('setRewatchCount clamps, and 1 deletes the field so old backups stay clean', () => {
+  Store.setRewatchCount('tv', 61, 999);
+  assert.strictEqual(Store.rewatchOf(Store.get().shows[61]), 50);
+  Store.setRewatchCount('tv', 61, 1);
+  assert.strictEqual('rewatchCount' in Store.get().shows[61], false);
+});
+
+t('setRating sets 1-5, 0 clears, out of range clears', () => {
+  Store.setRating('tv', 61, 4);
+  assert.strictEqual(Store.get().shows[61].rating, 4);
+  Store.setRating('tv', 61, 0);
+  assert.strictEqual('rating' in Store.get().shows[61], false);
+  Store.setRating('movie', 62, 9);
+  assert.strictEqual('rating' in Store.get().movies[62], false);
+});
+
+t('librarySummary carries rating and rewatch tags for AI grounding', () => {
+  Store.setRating('tv', 61, 5);
+  Store.setRewatchCount('tv', 61, 2);
+  Store.setRating('movie', 62, 3);
+  Store.setRewatchCount('movie', 62, 4);
+  const lib = Store.librarySummary();
+  assert.ok(lib.indexOf('rated 5/5') !== -1);
+  assert.ok(lib.indexOf('watched 2 times through') !== -1);
+  assert.ok(lib.indexOf('GenFilm (3/5, watched 4 times)') !== -1);
+});
+
+t('railAnchors: shows first by rewatch-weighted minutes, then one film, watched only', () => {
+  Store.clearAll();
+  Store.addShow(fakeDetails(70, 'Small', { 1: 2 }, 30));   // 60 min
+  Store.markSeason(70, 1, 2, true);
+  Store.addShow(fakeDetails(71, 'Big', { 1: 10 }, 30));    // 300 min
+  Store.markSeason(71, 1, 10, true);
+  Store.addShow(fakeDetails(72, 'Boosted', { 1: 3 }, 30)); // 90 min x5 = 450
+  Store.markSeason(72, 1, 3, true);
+  Store.setRewatchCount('tv', 72, 5);
+  Store.addShow(fakeDetails(73, 'Unwatched', { 1: 8 }, 30)); // excluded
+  Store.addMovie({ id: 74, title: 'FilmAnchor', runtime: 100, genres: [], release_date: '2020-01-01' });
+  Store.setMovieWatched(74, true);
+  const a = Store.railAnchors();
+  assert.deepStrictEqual(a.map((x) => x.title), ['Boosted', 'Big', 'Small', 'FilmAnchor']);
+  assert.strictEqual(a[3].kind, 'movie');
+  assert.strictEqual(a.length, 4); // 3-4 rail ruling: capped at 4
+});
+
+/* ---------- v2.6.0: deterministic voice insights ---------- */
+
+const QA = await import('../src/lib/insightsQA.js');
+
+t('insightsQA answers most watched show, counts and rewatches locally', () => {
+  const most = QA.answerInsight('what is my most watched show');
+  assert.ok(most.indexOf('Boosted') !== -1);
+  assert.ok(most.indexOf('5 times through') !== -1);
+  const eps = QA.answerInsight('how many episodes have I watched');
+  assert.ok(eps.indexOf('15') !== -1); // 2 + 10 + 3 distinct, never multiplied
+  const re = QA.answerInsight('what have I rewatched');
+  assert.ok(re.indexOf('Boosted \u00d75') !== -1 || re.indexOf('Boosted ×5') !== -1);
+});
+
+t('insightsQA returns null for unmatched questions instead of guessing', () => {
+  assert.strictEqual(QA.answerInsight('what is the meaning of life'), null);
+});
+
 console.log('\nAll ' + passed + ' tests passed.');

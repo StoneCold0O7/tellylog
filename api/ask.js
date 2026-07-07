@@ -32,6 +32,30 @@ const SYSTEM_TASTE = [
   'picture is still forming.'
 ].join(' ');
 
+/* v2.6.0: Explore rails. ONE call returns every rail. Anchors are
+   chosen client-side from real watch data and passed in; the model
+   must never invent, drop or reorder them, so the "because you
+   watched" premise is real by construction. Thin-library honesty is
+   structural: the shape carries a "note" and a per-rail "basis" the
+   UI renders, rather than trusting the model to volunteer modesty. */
+const SYSTEM_RAILS = [
+  'You fill "Because you watched X" recommendation rails for a TV and',
+  'film tracker. You receive the user\'s watch library and a list of',
+  'anchor titles chosen from it. Reply with ONLY a JSON object, no',
+  'markdown fences, no preamble, shaped exactly like:',
+  '{"rails":[{"anchor":"the exact anchor title you were given",',
+  '"kind":"tv|movie","basis":"one short sentence naming what in the',
+  'library these picks build on","picks":[{"title":"...","year":"2021",',
+  '"mediaType":"tv|movie","reason":"one short sentence"}]}],"note":""}',
+  'One rail per anchor, in the exact order given. Never invent,',
+  'rename, drop or reorder anchors. 5 to 6 picks per rail. Never pick',
+  'a title already in the library. Ground every reason in what the',
+  'library actually shows. If the library is thin, do NOT fake',
+  'confidence: put one honest sentence in "note" saying the picks',
+  'lean broad until more is logged, and keep each basis modest.',
+  'Otherwise "note" must be an empty string.'
+].join(' ');
+
 /* Rate limiting: 10 asks per 10 minutes per IP.
    Durable path: an Upstash Redis REST store (Vercel Marketplace).
    Reads either env naming Vercel uses (UPSTASH_REDIS_REST_URL/TOKEN
@@ -105,16 +129,31 @@ export default async function handler(req, res) {
   }
 
   const body = req.body || {};
-  const mode = body.mode === 'taste' ? 'taste' : 'ask';
+  const mode = body.mode === 'taste' ? 'taste' : body.mode === 'rails' ? 'rails' : 'ask';
   const question = String(body.question || '').slice(0, MAX_QUESTION).trim();
   const library = String(body.library || '').slice(0, MAX_LIBRARY);
   if (mode === 'ask' && !question) {
     res.status(400).json({ error: 'question required' });
     return;
   }
-  if (mode === 'taste' && !library) {
+  if ((mode === 'taste' || mode === 'rails') && !library) {
     res.status(400).json({ error: 'library required' });
     return;
+  }
+  /* v2.6.0: anchors arrive from the client, capped at 4 and sanitised
+     to plain strings so nothing structured sneaks into the prompt. */
+  let anchors = [];
+  if (mode === 'rails') {
+    anchors = (Array.isArray(body.anchors) ? body.anchors : []).slice(0, 4)
+      .map((a) => ({
+        title: String((a && a.title) || '').slice(0, 120).trim(),
+        kind: a && a.kind === 'movie' ? 'movie' : 'tv'
+      }))
+      .filter((a) => a.title);
+    if (anchors.length === 0) {
+      res.status(400).json({ error: 'anchors required' });
+      return;
+    }
   }
 
   const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
@@ -133,12 +172,14 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: mode === 'taste' ? 300 : 1400,
-        system: mode === 'taste' ? SYSTEM_TASTE : SYSTEM,
+        max_tokens: mode === 'taste' ? 300 : mode === 'rails' ? 2000 : 1400,
+        system: mode === 'taste' ? SYSTEM_TASTE : mode === 'rails' ? SYSTEM_RAILS : SYSTEM,
         messages: [{
           role: 'user',
           content: mode === 'taste'
             ? 'My library:\n' + library + '\n\nSummarise my taste.'
+            : mode === 'rails'
+            ? 'My library:\n' + library + '\n\nAnchors, in this exact order:\n' + anchors.map((a) => '- ' + a.title + ' (' + a.kind + ')').join('\n') + '\n\nFill the rails.'
             : 'My library:\n' + (library || '(empty)') + '\n\nQuestion: ' + question
         }]
       })
@@ -164,12 +205,28 @@ export default async function handler(req, res) {
     } catch (e) {
       /* Model ignored the JSON instruction: still return something usable. */
       if (mode === 'taste') res.status(200).json({ summary: text.slice(0, 600) });
+      else if (mode === 'rails') res.status(200).json({ rails: [], note: 'The model returned an unusable answer. It will retry next time your library changes.' });
       else res.status(200).json({ answer: text.slice(0, 600), picks: [] });
       return;
     }
 
     if (mode === 'taste') {
       res.status(200).json({ summary: String(parsed.summary || '').slice(0, 800) });
+      return;
+    }
+    if (mode === 'rails') {
+      const rails = (Array.isArray(parsed.rails) ? parsed.rails : []).slice(0, 4).map((r) => ({
+        anchor: String((r && r.anchor) || '').slice(0, 120),
+        kind: r && r.kind === 'movie' ? 'movie' : 'tv',
+        basis: String((r && r.basis) || '').slice(0, 240),
+        picks: (Array.isArray(r && r.picks) ? r.picks : []).slice(0, 6).map((p) => ({
+          title: String((p && p.title) || '').slice(0, 160),
+          year: p && p.year ? String(p.year).slice(0, 4) : '',
+          mediaType: p && p.mediaType === 'movie' ? 'movie' : 'tv',
+          reason: String((p && p.reason) || '').slice(0, 200)
+        })).filter((p) => p.title)
+      })).filter((r) => r.anchor && r.picks.length);
+      res.status(200).json({ rails, note: String(parsed.note || '').slice(0, 300) });
       return;
     }
     res.status(200).json({

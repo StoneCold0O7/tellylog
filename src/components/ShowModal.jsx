@@ -11,7 +11,7 @@ import * as Store from '../lib/store.js';
 import * as TMDB from '../lib/tmdb.js';
 import * as U from '../lib/util.js';
 import { useApp } from '../context.js';
-import { CheckBtn, Notice, FadeImg, SectionLabel, SkeletonRows, SkeletonLines, useEpisodeMeta } from './shared.jsx';
+import { CheckBtn, Notice, FadeImg, SectionLabel, SkeletonRows, SkeletonLines, useEpisodeMeta, Stars } from './shared.jsx';
 
 function fmtAirDate(iso) {
   const ts = U.parseDateFlexible(iso);
@@ -183,6 +183,22 @@ export default function ShowModal({ id }) {
         <button className="btn btn--tiny btn--ghost" onClick={archive}>{sh.archived ? 'Unarchive' : 'Archive'}</button>
         <button className="btn btn--tiny btn--danger" onClick={remove}>Stop tracking</button>
       </div>
+
+      {/* v2.6.0: series-level rewatch count + title rating. Both only
+          make sense once something is watched, so the row waits for
+          the first tick. The count multiplies TIME in stats, never
+          the distinct episode count. */}
+      {seen > 0 && (
+        <div className="modal__owner-row">
+          <div className="rewatch" role="group" aria-label="Times watched through">
+            <span className="rewatch__label">Watched through</span>
+            <button className="rewatch__btn" onClick={() => Store.setRewatchCount('tv', sh.id, Store.rewatchOf(sh) - 1)} disabled={Store.rewatchOf(sh) <= 1} aria-label="Fewer times">−</button>
+            <span className="rewatch__n">×{Store.rewatchOf(sh)}</span>
+            <button className="rewatch__btn" onClick={() => Store.setRewatchCount('tv', sh.id, Store.rewatchOf(sh) + 1)} aria-label="More times">+</button>
+          </div>
+          <Stars value={sh.rating || 0} onSet={(n) => Store.setRating('tv', sh.id, n)} label={'Your rating of ' + sh.name} />
+        </div>
+      )}
 
       <div className="modal__sections">
         <NextUp sh={sh} />

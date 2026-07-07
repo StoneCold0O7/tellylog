@@ -924,3 +924,73 @@ a.provider--link:hover .provider__kind { color: var(--ink); }
 .profile-hero__edit { position: absolute; top: 10px; right: 10px; }
 .avatar--img { object-fit: cover; padding: 0; }
 .hero-edit { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 2px; }
+
+/* ---------- v2.6.0: stats hero, rewatch, ratings, rails, stats ask ---------- */
+
+/* Owner-reported bug: the old --plain hero inherited .modal__hero's
+   on-media (near-white) text over a light surface in light mode. This
+   variant uses theme ink over an accent wash, legible in both themes
+   by construction. */
+.modal__hero--stats {
+  min-height: 0;
+  background-image: none;
+  background: linear-gradient(135deg, var(--accent-soft) 0%, transparent 65%), var(--surface);
+  border-bottom: 2px solid var(--accent);
+  color: var(--ink);
+  padding: 22px 16px 14px;
+}
+.modal__hero--stats .modal__meta { color: var(--muted); }
+.modal__hero--stats .modal__close { background: var(--surface-2); color: var(--ink); }
+.stats-hero__eyebrow {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.14em; color: var(--muted); margin-bottom: 6px;
+}
+
+.chip--rewatch {
+  background: var(--accent-soft); color: var(--ink);
+  font-family: var(--font-mono); font-weight: 700; font-size: 11px;
+  margin-left: 6px; padding: 1px 6px; border-radius: 8px;
+}
+
+.modal__owner-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+  margin: 2px 16px 6px; padding: 8px 12px;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: var(--surface);
+}
+.modal__owner-row--pad { margin-top: 8px; }
+
+.rewatch { display: flex; align-items: center; gap: 8px; }
+.rewatch__label { font-size: 13px; color: var(--muted); }
+.rewatch__btn {
+  width: 28px; height: 28px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--surface-2);
+  color: var(--ink); font-weight: 700; font-size: 15px; line-height: 1;
+}
+.rewatch__btn:disabled { opacity: 0.4; }
+.rewatch__n { font-family: var(--font-mono); font-weight: 700; min-width: 30px; text-align: center; }
+
+.stars { display: flex; gap: 2px; }
+.stars__b { font-size: 20px; line-height: 1; padding: 2px; color: var(--muted); background: none; }
+.stars__b--on { color: var(--accent); }
+
+/* Explore rails */
+.rails { margin-top: 8px; }
+.rails__note {
+  border: 1px dashed var(--line); border-radius: 10px;
+  padding: 8px 12px; margin: 8px 0 2px;
+  font-size: 13px; color: var(--muted);
+}
+.rail__basis { font-size: 13px; color: var(--muted); margin: -4px 0 8px; }
+
+/* Ask your stats */
+.statsask { margin: 18px 0 6px; }
+.statsask__answer {
+  margin: 10px 0 0; padding: 10px 12px;
+  background: var(--accent-soft); border-radius: 12px;
+  font-size: 14px; line-height: 1.45;
+}
+.statsask__help { margin: 10px 0 0; font-size: 13px; color: var(--muted); line-height: 1.45; }
+
+.data-actions--stack { flex-direction: column; align-items: stretch; }
