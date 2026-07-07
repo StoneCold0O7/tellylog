@@ -2,7 +2,7 @@
 
 Purpose of this file: cold-start ANY new Claude session (any model) with the full essence of this project. It is the stable half of a two-file pattern. This file changes rarely; the volatile session state lives in HANDOVER-NEXT.md, regenerated at every session close. A new session needs three things: this file, the latest HANDOVER-NEXT.md and the current codebase zip.
 
-Last regenerated: 7 July 2026, at the start of the Phase 2b build (v2.4.0).
+Last regenerated: 7 July 2026, at the close of the v2.5.0 build (interactive stats, TV watchlist, profile images).
 
 ---
 
@@ -40,12 +40,12 @@ Style rules for ALL output: no em dashes, no ", and" (no Oxford comma), no fille
 
 Root: `{ version:1, settings, shows, movies, log }`.
 
-- settings: `{ apiKey, profileName, theme ('dark'|'light'), gridSeen }`
-- shows[id]: `{ id, name, poster, backdrop, status, network, avgRuntime, seasons {n: epCount}, nextEp|null, lastEp|null, watched {s:[e,...]}, lastWatchedAt, added, archived, keptAt?, detailsFetchedAt, genreList? }`
+- settings: `{ apiKey, profileName, theme ('dark'|'light'), gridSeen, avatar? (compressed JPEG data URL, v2.5.0), cover? (same, v2.5.0) }`
+- shows[id]: `{ id, name, poster, backdrop, status, network, avgRuntime, seasons {n: epCount}, nextEp|null, lastEp|null, watched {s:[e,...]}, lastWatchedAt, added, archived, keptAt?, watchlist? (v2.5.0, saved-not-started, auto-clears on first watched episode), detailsFetchedAt, genreList? }`
 - movies[id]: `{ id, title, poster, runtime, genres (legacy top-2 display string), genreList? (full array, v2.4.0), releaseDate, watchlist, watchedAt|null, added }`
 - log: `[{ showId, s, e, ts }]` one entry per watched episode, ts is logging time (imports carry the export's real dates)
 
-Schema law: additive fields only, never rename or repurpose, restore of OLD backups must always work. Additive fields to date: show.keptAt, settings.theme, settings.gridSeen (Phase 1), show.genreList and movie.genreList (Phase 2b, backfilled once from TMDB on the Profile page when missing). The taste summary cache lives in a SEPARATE key `tellylog:taste:v1` because it is derived data and does not belong in backups.
+Schema law: additive fields only, never rename or repurpose, restore of OLD backups must always work. Additive fields to date: show.keptAt, settings.theme, settings.gridSeen (Phase 1), show.genreList and movie.genreList (Phase 2b, backfilled once from TMDB when missing; since v2.5.0 the backfill runs inside the Stats modal, not on the Profile page), show.watchlist, settings.avatar and settings.cover (v2.5.0). The taste summary cache lives in a SEPARATE key `tellylog:taste:v1` because it is derived data and does not belong in backups.
 
 ## 5. Build history, decisions and reversals
 
@@ -65,21 +65,28 @@ Schema law: additive fields only, never rename or repurpose, restore of OLD back
 
 **v2.3.1 hotfix.** v2.3.0's bracket-named catch-all function (api/tmdb/[...path].js) did not route on the deployment; replaced with a flat api/tmdb.js (?p=), the same routing mechanism as /api/health. The client now verifies the proxy with one real call per page load and falls back to the direct path, so a broken proxy can never blank the app for a keyed user. The old catch-all file was deleted from the repo by the owner. Diagnostic verified clean by the owner on 7 July 2026.
 
-**Phase 2b (v2.4.0, current).** Profile insights: minute-weighted genre bars, primary-genre donut, monthly activity line, all hand-rolled SVG (no chart library, by spec). show.genreList and movie.genreList added (additive), one-time TMDB backfill on the Profile page replacing the earlier lazy-backfill recommendation after an owner ruling: lazy fill would leave charts incomplete until every modal had been opened. Weighting rulings: minutes not title counts (a 200-episode sitcom must outweigh a 6-episode miniseries), bars credit every genre a title carries (overlapping, never summed), the donut uses primary genre only so slices honestly sum to 100%, unattributed minutes are disclosed as a coverage percentage. AI taste summary on Profile through the same /api/ask function (mode:'taste'), cached outside the schema, refreshed only when the library changes or on demand. Ask picks raised from 2-4 to 5-7 on the owner's nonnegotiable instruction; the recorded tradeoff is filler risk on thin libraries. Durable KV rate limiter with graceful in-memory fallback; durability activates only once the owner provisions the Upstash store in Vercel. Attribution added (footer credit, console colophon, author meta tag) with the explicit understanding that these are storytelling, not proof: authorship evidence is the commit history, this decision record and the ability to change the live site on demand.
+**Phase 2b (v2.4.0).** Profile insights: minute-weighted genre bars, primary-genre donut, monthly activity line, all hand-rolled SVG (no chart library, by spec). show.genreList and movie.genreList added (additive), one-time TMDB backfill on the Profile page replacing the earlier lazy-backfill recommendation after an owner ruling: lazy fill would leave charts incomplete until every modal had been opened. Weighting rulings: minutes not title counts (a 200-episode sitcom must outweigh a 6-episode miniseries), bars credit every genre a title carries (overlapping, never summed), the donut uses primary genre only so slices honestly sum to 100%, unattributed minutes are disclosed as a coverage percentage. AI taste summary on Profile through the same /api/ask function (mode:'taste'), cached outside the schema, refreshed only when the library changes or on demand. Ask picks raised from 2-4 to 5-7 on the owner's nonnegotiable instruction; the recorded tradeoff is filler risk on thin libraries. Durable KV rate limiter with graceful in-memory fallback; durability activates only once the owner provisions the Upstash store in Vercel. Attribution added (footer credit, console colophon, author meta tag) with the explicit understanding that these are storytelling, not proof: authorship evidence is the commit history, this decision record and the ability to change the live site on demand.
+
+**Session reorder, owner ruling (7 July 2026).** The remaining roadmap was resequenced: feature sessions first, README last, because the README should describe the finished product. The same message reported the TV Time export is NOT happening. The grounding gate was NOT retired with it: the agreed replacement is a manual logging campaign of the owner's genuine top 30-50 shows before the recommendation-rails session, with a GDPR data request to TV Time tabled as a parallel option.
+
+**v2.5.0 (current).** Charts moved off the Profile into a Stats modal behind one button (owner ruling: Profile stays scannable) and made interactive: click a bar, slice, legend row or month point to see the contributing titles with minutes; hover effects are cosmetic and click is the mechanism because the phone is the primary device. Bar and donut drill-downs legitimately differ for the same genre (full versus primary crediting) and caption their methods. The genre backfill moved into the modal, so TMDB is only hit when stats are opened. Still zero chart libraries. TV watchlist added after the audit REJECTED the owner's proposal to remove archive: watchlist means not started, archive means started and shelved, different states; both now exist. show.watchlist is additive, saved shows live in a WATCHLIST section on the Shows tab, are excluded from Tonight/Up next/nudge and the flag auto-clears on the first watched episode. librarySummary tags them for future AI grounding. The taste summary's manual Refresh button was removed (pulled forward from the README session): the summary already auto-refreshed on library change, so the button only rerolled identical input at API cost. Profile and cover images added as additive settings fields with client-side canvas compression as a hard requirement (avatar 256px, cover 1280x512, ~300KB post-compression cap) because raw base64 photos would blow the localStorage quota and bloat every backup.
 
 ## 6. Rejected directions, one list (the README's raw material)
 
-Supabase/auth/accounts, embeddings recommender rail, Whisper voice, native iOS build (PWA is the path), Kino rename, per-provider deep links, voice auto-submit, prompt caching, lazy genre backfill, watermark-as-proof. Each has documented reasoning in the SESSION-LOG files.
+Supabase/auth/accounts, embeddings recommender rail, Whisper voice, native iOS build (PWA is the path), Kino rename, per-provider deep links, voice auto-submit, prompt caching, lazy genre backfill, watermark-as-proof, archive removal (watchlist added instead; they are different states), floating SVG tooltips (click-selected detail instead, touch-first), letting the grounding gate lapse with the dead TV Time export (replaced by the manual top-50 campaign). Each has documented reasoning in the SESSION-LOG files.
 
 ## 7. Current state and the gates
 
-- Live: tellylog-3d2u.vercel.app, v2.4.0, proxy mode verified, ask box live, ~96 tests green at last build. Exact current state: see HANDOVER-NEXT.md, which supersedes this section whenever they disagree.
-- GATE for the LinkedIn post and public launch: the real TV Time export (~11,413 episodes) imported and verified. Overdue across five-plus sessions. Both AI surfaces are demo theatre without it, by the owner's own success criterion.
+- Live: tellylog-3d2u.vercel.app, v2.5.0, proxy mode verified, ask box live, 109 tests green at last build. Exact current state: see HANDOVER-NEXT.md, which supersedes this section whenever they disagree.
+- GATE for the LinkedIn post and public launch: real watch history. The TV Time export (~11,413 episodes) is confirmed DEAD; the replacement gate is the manual top-50 logging campaign (owner action, roughly an evening) plus an optional GDPR data request to TV Time. AI surfaces are demo theatre without real data, by the owner's own success criterion, and the next session builds more AI surface.
 - Owner-side pending: provision the Upstash/KV store for the durable rate limit; confirm Anthropic credit stays topped up.
 
 ## 8. What remains
 
-Phase 3, the final build phase: README and decision log as the PRIMARY portfolio deliverable (SESSION-LOG*.md and PHASE1-NOTES.md are the raw material), a colophon page telling the build story, PWA manifest plus service worker for installability. After Phase 3: export verification if still outstanding, then the LinkedIn post.
+Two build sessions remain, in the owner's reordered sequence:
+- Session C (next): Explore "because you watched X" recommendation rails, ONE LLM call returning all rails as JSON, cached outside the schema like the taste summary, refreshed only on library-hash change. GATED on the manual top-50 grounding campaign. Decision box: voice-driven Profile insights (audit position: deterministic queries answered locally, never via the LLM).
+- Session A / Phase 3 (final): README and decision log as the PRIMARY portfolio deliverable (SESSION-LOG*.md and PHASE1-NOTES.md are the raw material), a colophon page telling the build story naming the Claude-directed method explicitly (owner ruling), PWA manifest plus service worker for installability.
+After both: the LinkedIn post, gated on real data being in place.
 
 ## 9. How to run a session (for a fresh Claude)
 

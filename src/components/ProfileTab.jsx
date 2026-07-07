@@ -10,10 +10,49 @@ import InsightsSection from './InsightsSection.jsx';
 export default function ProfileTab() {
   const { openShow, openModal, toast, go, setMoviesSub } = useApp();
   const [showView, setShowView] = useState('posters'); // 'posters' | 'list'
+  const [editing, setEditing] = useState(false);
   const st = Store.stats();
   const shows = Object.keys(Store.get().shows).map((id) => Store.get().shows[id]);
   shows.sort((a, b) => (b.lastWatchedAt || b.added) - (a.lastWatchedAt || a.added));
-  const backdrop = shows.length && shows[0].backdrop ? TMDB.img(shows[0].backdrop, 'w780') : '';
+  const cover = Store.cover();
+  const avatar = Store.avatar();
+  const backdrop = cover || (shows.length && shows[0].backdrop ? TMDB.img(shows[0].backdrop, 'w780') : '');
+
+  /* v2.5.0: images are downscaled and recompressed on the client
+     BEFORE they touch localStorage, because a raw phone photo as
+     base64 would eat most of the ~5MB quota and triple every backup.
+     Hard cap after compression as a second line of defence. */
+  function pickImage(kind) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      const maxW = kind === 'avatar' ? 256 : 1280;
+      const maxH = kind === 'avatar' ? 256 : 512;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const scale = Math.min(1, maxW / img.width, maxH / img.height);
+          const cv = document.createElement('canvas');
+          cv.width = Math.max(1, Math.round(img.width * scale));
+          cv.height = Math.max(1, Math.round(img.height * scale));
+          cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+          const url = cv.toDataURL('image/jpeg', 0.82);
+          if (url.length > 400000) { toast('That image is too large even after compression. Try a smaller one.'); return; }
+          if (kind === 'avatar') Store.setAvatar(url); else Store.setCover(url);
+          toast(kind === 'avatar' ? 'Profile photo updated.' : 'Cover updated.');
+        };
+        img.onerror = () => toast('Could not read that image.');
+        img.src = reader.result;
+      };
+      reader.onerror = () => toast('Could not read that file.');
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  }
 
   function exportBackup() {
     const blob = new Blob([Store.exportJSON()], { type: 'application/json' });
@@ -34,8 +73,19 @@ export default function ProfileTab() {
   return (
     <>
       <div className="profile-hero" style={backdrop ? { backgroundImage: "linear-gradient(rgba(10,10,14,.55),rgba(10,10,14,.92)),url('" + backdrop + "')" } : undefined}>
-        <div className="avatar" aria-hidden="true">{(Store.get().settings.profileName || 'Y')[0].toUpperCase()}</div>
+        <button className="btn btn--ghost btn--mini profile-hero__edit" onClick={() => setEditing(!editing)} aria-expanded={editing}>{editing ? 'Done' : 'Edit'}</button>
+        {avatar
+          ? <img className="avatar avatar--img" src={avatar} alt="Profile" />
+          : <div className="avatar" aria-hidden="true">{(Store.get().settings.profileName || 'Y')[0].toUpperCase()}</div>}
       </div>
+      {editing && (
+        <div className="hero-edit">
+          <button className="btn btn--tiny" onClick={() => pickImage('avatar')}>Change photo</button>
+          {avatar && <button className="btn btn--tiny btn--ghost" onClick={() => { Store.setAvatar(null); toast('Photo removed.'); }}>Remove photo</button>}
+          <button className="btn btn--tiny" onClick={() => pickImage('cover')}>Change cover</button>
+          {cover && <button className="btn btn--tiny btn--ghost" onClick={() => { Store.setCover(null); toast('Cover removed.'); }}>Remove cover</button>}
+        </div>
+      )}
 
       <SectionLabel>STATS</SectionLabel>
       <div className="stats-row">
@@ -66,6 +116,9 @@ export default function ProfileTab() {
           <div className="stat-card__big">{U.fmtNumber(st.moviesWatched)}</div>
           <div className="stat-card__hint">See the list ›</div>
         </button>
+      </div>
+      <div className="data-actions">
+        <button className="btn btn--primary" onClick={() => openModal({ type: 'stats' })}>📊 Open your stats</button>
       </div>
 
       <InsightsSection />

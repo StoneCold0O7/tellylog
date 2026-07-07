@@ -422,4 +422,116 @@ t('monthlyMinutes: empty store gives empty array', () => {
   assert.deepStrictEqual(Store.monthlyMinutes(), []);
 });
 
+/* ---------- v2.5.0: TV watchlist ---------- */
+
+t('addShow defaults watchlist false; addShowToWatchlist sets it true', () => {
+  Store.clearAll();
+  Store.addShow(fakeDetails(501, 'Tracked', { 1: 8 }, 40));
+  assert.strictEqual(Store.get().shows[501].watchlist, false);
+  Store.addShowToWatchlist(fakeDetails(502, 'Saved', { 1: 8 }, 40));
+  assert.strictEqual(Store.get().shows[502].watchlist, true);
+});
+
+t('addShowToWatchlist never flags an already-started show', () => {
+  Store.markEpisode(501, 1, 1, true);
+  Store.addShowToWatchlist(fakeDetails(501, 'Tracked', { 1: 8 }, 40));
+  assert.strictEqual(Store.get().shows[501].watchlist, false);
+});
+
+t('watching the first episode clears the watchlist flag automatically', () => {
+  Store.markEpisode(502, 1, 1, true);
+  assert.strictEqual(Store.get().shows[502].watchlist, false);
+});
+
+t('watchNextList excludes watchlisted unstarted shows; watchlistShows finds them', () => {
+  Store.clearAll();
+  Store.addShow(fakeDetails(503, 'InQueue', { 1: 8 }, 40));
+  Store.addShowToWatchlist(fakeDetails(504, 'SavedOnly', { 1: 8 }, 40));
+  const lists = Store.watchNextList();
+  const ids = lists.next.map((e) => e.show.id);
+  assert.ok(ids.indexOf(503) !== -1);
+  assert.ok(ids.indexOf(504) === -1);
+  const wl = Store.watchlistShows();
+  assert.strictEqual(wl.length, 1);
+  assert.strictEqual(wl[0].id, 504);
+});
+
+t('librarySummary tags watchlisted shows', () => {
+  const lib = Store.librarySummary();
+  assert.ok(lib.indexOf('SavedOnly') !== -1);
+  assert.ok(lib.indexOf('on watchlist, not started') !== -1);
+});
+
+t('restoring a pre-2.5 backup (no watchlist field) keeps shows in the queue', () => {
+  Store.clearAll();
+  Store.addShow(fakeDetails(505, 'Old', { 1: 4 }, 40));
+  delete Store.get().shows[505].watchlist;
+  const backup = Store.exportJSON();
+  Store.clearAll();
+  Store.restoreJSON(backup);
+  const lists = Store.watchNextList();
+  assert.strictEqual(lists.next.length, 1);
+  assert.strictEqual(Store.watchlistShows().length, 0);
+});
+
+/* ---------- v2.5.0: chart drill-downs ---------- */
+
+t('genreTitles: full crediting lists every carrier, primaryOnly lists first-genre titles only', () => {
+  Store.clearAll();
+  Store.addShow(fakeDetailsG(506, 'CrimeDrama', { 1: 10 }, 30, ['Crime', 'Drama']));
+  Store.markSeason(506, 1, 10, true); // 300 min
+  Store.addShow(fakeDetailsG(507, 'PureDrama', { 1: 5 }, 60, ['Drama']));
+  Store.markSeason(507, 1, 5, true); // 300 min
+  const full = Store.genreTitles('Drama', false);
+  assert.strictEqual(full.length, 2);
+  const prim = Store.genreTitles('Drama', true);
+  assert.strictEqual(prim.length, 1);
+  assert.strictEqual(prim[0].title, 'PureDrama');
+});
+
+t('genreTitles: watched films included, watchlist films excluded, sorted by minutes desc', () => {
+  Store.addMovie({ id: 508, title: 'BigFilm', runtime: 400, genres: [{ id: 1, name: 'Drama' }] });
+  Store.setMovieWatched(508, true);
+  Store.addMovie({ id: 509, title: 'UnseenFilm', runtime: 400, genres: [{ id: 1, name: 'Drama' }] });
+  const full = Store.genreTitles('Drama', false);
+  assert.strictEqual(full[0].title, 'BigFilm');
+  assert.ok(full.every((x) => x.title !== 'UnseenFilm'));
+});
+
+t('monthTitles: aggregates per title with episode counts plus films in that month', () => {
+  Store.clearAll();
+  Store.addShow(fakeDetailsG(510, 'Timed', { 1: 5 }, 40, ['Drama']));
+  const feb = new Date(2025, 1, 10).getTime();
+  Store.markEpisode(510, 1, 1, true, feb);
+  Store.markEpisode(510, 1, 2, true, feb);
+  Store.addMovie({ id: 511, title: 'FebFilm', runtime: 120, genres: [] });
+  Store.setMovieWatched(511, true, feb);
+  const rows = Store.monthTitles('2025-02');
+  assert.strictEqual(rows.length, 2);
+  assert.strictEqual(rows[0].title, 'FebFilm');
+  assert.strictEqual(rows[0].minutes, 120);
+  assert.strictEqual(rows[1].title, 'Timed');
+  assert.strictEqual(rows[1].count, 2);
+  assert.strictEqual(rows[1].minutes, 80);
+  assert.deepStrictEqual(Store.monthTitles('2025-03'), []);
+});
+
+/* ---------- v2.5.0: avatar and cover settings ---------- */
+
+t('setAvatar and setCover persist and clear; old backups without them restore clean', () => {
+  Store.clearAll();
+  Store.setAvatar('data:image/jpeg;base64,AAA');
+  Store.setCover('data:image/jpeg;base64,BBB');
+  assert.strictEqual(Store.avatar(), 'data:image/jpeg;base64,AAA');
+  assert.strictEqual(Store.cover(), 'data:image/jpeg;base64,BBB');
+  Store.setAvatar(null);
+  assert.strictEqual(Store.avatar(), '');
+  const old = JSON.parse(Store.exportJSON());
+  delete old.settings.avatar;
+  delete old.settings.cover;
+  Store.restoreJSON(JSON.stringify(old));
+  assert.strictEqual(Store.avatar(), '');
+  assert.strictEqual(Store.cover(), '');
+});
+
 console.log('\nAll ' + passed + ' tests passed.');

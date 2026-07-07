@@ -100,6 +100,11 @@ function showFromDetails(d) {
     lastWatchedAt: null,
     added: Date.now(),
     archived: false,
+    /* v2.5.0 additive field: true means the show is saved to watch
+       later and has not been started. Cleared automatically on the
+       first watched episode. Old records lack it and read as falsy,
+       which is the correct meaning for anything already tracked. */
+    watchlist: false,
     detailsFetchedAt: Date.now(),
     /* Phase 2b additive field: full TMDB genre names, used by the
        profile charts. Old records lack it; genreBackfillList() finds
@@ -138,6 +143,31 @@ export function setArchived(id, archived) {
   if (sh) { sh.archived = !!archived; save(); }
 }
 
+/* v2.5.0: TV watchlist. Mirrors the film watchlist semantics: saved,
+   not started. Starting the show (first watched episode) clears the
+   flag automatically inside markEpisode. */
+export function addShowToWatchlist(details) {
+  var sh = addShow(details);
+  if (sh && watchedCount(sh) === 0) { sh.watchlist = true; save(); }
+  return sh;
+}
+
+export function setShowWatchlist(id, on) {
+  var sh = state.shows[id];
+  if (sh) { sh.watchlist = !!on; save(); }
+}
+
+/* Watchlisted, unstarted shows, newest saved first. */
+export function watchlistShows() {
+  var out = [];
+  Object.keys(state.shows).forEach(function (id) {
+    var sh = state.shows[id];
+    if (sh.watchlist && watchedCount(sh) === 0) out.push(sh);
+  });
+  out.sort(function (a, b) { return (b.added || 0) - (a.added || 0); });
+  return out;
+}
+
 /* "Keep" on a stale show: resets its staleness clock without faking a
    watch event. keptAt is additive; old data without it behaves as before. */
 export function keepShow(id) {
@@ -160,6 +190,9 @@ export function markEpisode(id, s, e, watched, ts) {
       sh.watched[s].sort(function (a, b) { return a - b; });
       state.log.push({ showId: id, s: s, e: e, ts: ts || Date.now() });
       sh.lastWatchedAt = Math.max(sh.lastWatchedAt || 0, ts || Date.now());
+      /* v2.5.0: watching anything means the show is started, so it
+         leaves the watchlist without a second tap. */
+      if (sh.watchlist) sh.watchlist = false;
     }
   } else {
     if (sh.watched[s]) {
@@ -215,6 +248,9 @@ export function watchNextList() {
   Object.keys(state.shows).forEach(function (id) {
     var sh = state.shows[id];
     if (sh.archived) return;
+    /* v2.5.0: watchlisted shows are saved-for-later, not queued. They
+       live in the WATCHLIST section until started. */
+    if (sh.watchlist && watchedCount(sh) === 0) return;
     var next = nextEpisodeFor(sh);
     if (!next) return;
     var entry = { show: sh, next: next, remaining: remainingCount(sh) };
@@ -427,6 +463,7 @@ export function librarySummary(maxShows, maxMovies) {
     var bits = [sh.name, seen + '/' + total + ' eps'];
     if (sh.status) bits.push(sh.status);
     if (sh.archived) bits.push('dropped');
+    if (sh.watchlist && seen === 0) bits.push('on watchlist, not started');
     lines.push('- ' + bits.join(', '));
   });
   var watched = [];
@@ -505,6 +542,52 @@ function monthKey(ts) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
 }
 
+/* v2.5.0: chart drill-down. Titles contributing to one genre, with
+   their watched minutes, desc. primaryOnly must match the chart that
+   was clicked: bars credit every genre, the donut credits only the
+   first, so the two lists legitimately differ for the same genre. */
+export function genreTitles(genre, primaryOnly) {
+  var out = [];
+  function consider(list, minutes, title, kind) {
+    if (!minutes || !Array.isArray(list) || list.length === 0) return;
+    var names = primaryOnly ? [list[0]] : list;
+    if (names.indexOf(genre) !== -1) out.push({ title: title, minutes: minutes, kind: kind });
+  }
+  Object.keys(state.shows).forEach(function (id) {
+    var sh = state.shows[id];
+    consider(sh.genreList, showMinutes(sh), sh.name, 'tv');
+  });
+  Object.keys(state.movies).forEach(function (id) {
+    var mv = state.movies[id];
+    if (mv.watchedAt) consider(mv.genreList, mv.runtime || 100, mv.title, 'movie');
+  });
+  out.sort(function (a, b) { return b.minutes - a.minutes; });
+  return out;
+}
+
+/* v2.5.0: chart drill-down for the activity line. What was logged in
+   one month key ('YYYY-MM'), aggregated per title, desc by minutes. */
+export function monthTitles(key) {
+  var map = {};
+  state.log.forEach(function (l) {
+    if (!l.ts || monthKey(l.ts) !== key) return;
+    var sh = state.shows[l.showId];
+    if (!sh) return;
+    if (!map[sh.name]) map[sh.name] = { title: sh.name, minutes: 0, count: 0, kind: 'tv' };
+    map[sh.name].minutes += sh.avgRuntime || DEFAULT_RUNTIME;
+    map[sh.name].count++;
+  });
+  Object.keys(state.movies).forEach(function (id) {
+    var mv = state.movies[id];
+    if (mv.watchedAt && monthKey(mv.watchedAt) === key) {
+      map[mv.title] = { title: mv.title, minutes: mv.runtime || 100, count: 1, kind: 'movie' };
+    }
+  });
+  var out = Object.keys(map).map(function (k) { return map[k]; });
+  out.sort(function (a, b) { return b.minutes - a.minutes; });
+  return out;
+}
+
 /* Contiguous months from the earliest logged watch to the latest,
    zero-filled, minutes from episode log timestamps plus film
    watchedAt. Timestamps are LOGGING time (imports carry the export's
@@ -542,6 +625,15 @@ export function monthlyMinutes() {
 
 export function setApiKey(k) { state.settings.apiKey = k.trim(); save(); }
 export function apiKey() { return state.settings.apiKey; }
+
+/* v2.5.0 additive settings fields: avatar and cover as small
+   compressed data URLs. They ride inside backups like every other
+   setting; the UI downscales before calling these so a phone photo
+   cannot blow the localStorage quota. null clears. */
+export function setAvatar(dataUrl) { state.settings.avatar = dataUrl || ''; save(); }
+export function avatar() { return state.settings.avatar || ''; }
+export function setCover(dataUrl) { state.settings.cover = dataUrl || ''; save(); }
+export function cover() { return state.settings.cover || ''; }
 export function theme() { return state.settings.theme === 'light' ? 'light' : 'dark'; }
 export function setTheme(t) { state.settings.theme = t === 'light' ? 'light' : 'dark'; save(); }
 export function gridSeen() { return !!state.settings.gridSeen; }

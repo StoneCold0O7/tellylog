@@ -15,6 +15,7 @@ import TitleModal from './TitleModal.jsx';
 import SettingsModal from './SettingsModal.jsx';
 import ImportWizard from './ImportWizard.jsx';
 import OnboardingGrid from './OnboardingGrid.jsx';
+import StatsModal from './StatsModal.jsx';
 import { IconTv, IconCalendar, IconFilm, IconSearch, IconUser } from './Icons.jsx';
 
 const TABS = ['shows', 'upcoming', 'movies', 'explore', 'profile'];
@@ -163,12 +164,13 @@ export default function App() {
 
       {modal && (
         <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}>
-          <div className={'modal ' + (modal.type === 'show' || modal.type === 'preview' ? 'modal--show' : modal.type === 'grid' ? 'modal--grid' : 'modal--import')} role="dialog" aria-modal="true">
+          <div className={'modal ' + (modal.type === 'show' || modal.type === 'preview' ? 'modal--show' : modal.type === 'grid' ? 'modal--grid' : modal.type === 'stats' ? 'modal--show' : 'modal--import')} role="dialog" aria-modal="true">
             {modal.type === 'show' && <ShowModal id={modal.id} />}
             {modal.type === 'preview' && <TitleModal media={modal.media} id={modal.id} />}
             {modal.type === 'settings' && <SettingsModal />}
             {modal.type === 'import' && <ImportWizard />}
             {modal.type === 'grid' && <OnboardingGrid />}
+            {modal.type === 'stats' && <StatsModal />}
           </div>
         </div>
       )}

@@ -57,6 +57,17 @@ export default function TitleModal({ media, id }) {
     }).catch(() => { setBusy(false); toast('Could not add that show.'); });
   }
 
+  /* v2.5.0: parity with films. Saves the show without opening the
+     tracker; it lives in the WATCHLIST section until started. */
+  function watchlistShow() {
+    setBusy(true);
+    TMDB.tvDetails(id).then((d) => {
+      Store.addShowToWatchlist(d);
+      setBusy(false);
+      toast('Added ' + d.name + ' to your watchlist');
+    }).catch(() => { setBusy(false); toast('Could not add that show.'); });
+  }
+
   function addMovie() {
     setBusy(true);
     TMDB.movieDetails(id).then((d) => {
@@ -96,9 +107,22 @@ export default function TitleModal({ media, id }) {
 
       <div className="modal__actions">
         {isTV ? (
-          trackedShow
-            ? <button className="btn btn--tiny btn--primary" onClick={() => openShow(id)}>Open in your tracker</button>
-            : <button className="btn btn--tiny btn--primary" onClick={trackShow} disabled={busy}>{busy ? '…' : 'Track this show'}</button>
+          trackedShow ? (
+            trackedShow.watchlist && Store.watchedCount(trackedShow) === 0 ? (
+              <>
+                <span className="preview__owned"><span>On your watchlist</span></span>
+                <button className="btn btn--tiny btn--primary" onClick={() => { Store.setShowWatchlist(id, false); openShow(id); }}>Start watching</button>
+                <button className="btn btn--tiny btn--danger" onClick={() => { Store.removeShow(id); toast('Removed.'); closeModal(); }}>Remove</button>
+              </>
+            ) : (
+              <button className="btn btn--tiny btn--primary" onClick={() => openShow(id)}>Open in your tracker</button>
+            )
+          ) : (
+            <>
+              <button className="btn btn--tiny btn--primary" onClick={trackShow} disabled={busy}>{busy ? '…' : 'Track this show'}</button>
+              <button className="btn btn--tiny" onClick={watchlistShow} disabled={busy}>{busy ? '…' : 'Add to watchlist'}</button>
+            </>
+          )
         ) : (
           trackedMovie ? (
             <>

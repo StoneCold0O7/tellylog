@@ -50,6 +50,40 @@ function StaleCard({ entry }) {
   );
 }
 
+/* v2.5.0: saved-for-later shows, the TV twin of the film watchlist.
+   Collapsible like ARCHIVED. Start moves the show into the queue and
+   opens the tracker; watching any episode does the same implicitly. */
+function WatchlistSection() {
+  const { openShow, toast } = useApp();
+  const [open, setOpen] = useState(true);
+  const list = Store.watchlistShows();
+  if (list.length === 0) return null;
+  return (
+    <div className="arch">
+      <button className="arch__toggle" onClick={() => setOpen(!open)} aria-expanded={open}>
+        WATCHLIST ({list.length}) <span className={'arch__chev' + (open ? ' arch__chev--open' : '')}>▾</span>
+      </button>
+      {open && list.map((sh) => (
+        <article className="ep-row" key={sh.id}>
+          <button className="ep-row__poster" onClick={() => openShow(sh.id)}>
+            <Poster path={sh.poster} alt={sh.name} />
+          </button>
+          <div className="ep-row__body">
+            <button className="ep-row__title title-link" onClick={() => openShow(sh.id)}>
+              {sh.name}<span className="title-link__chev" aria-hidden="true">›</span>
+            </button>
+            <div className="ep-row__meta">Saved to watch later</div>
+          </div>
+          <div className="ep-row__actions">
+            <button className="btn btn--tiny btn--primary" onClick={() => { Store.setShowWatchlist(sh.id, false); openShow(sh.id); toast('In your queue. Enjoy.'); }}>Start</button>
+            <button className="icon-btn" onClick={() => { Store.removeShow(sh.id); toast('Removed.'); }} aria-label="Remove show">✕</button>
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
 function ArchivedSection() {
   const { openShow, toast } = useApp();
   const [open, setOpen] = useState(false);
@@ -140,6 +174,7 @@ export default function ShowsTab() {
         </>
       )}
 
+      <WatchlistSection />
       <ArchivedSection />
     </>
   );
