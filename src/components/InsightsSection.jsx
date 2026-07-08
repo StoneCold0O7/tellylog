@@ -4,12 +4,15 @@
    button was removed the same session: the cache already refetches
    whenever the library hash changes, which is the auto-refresh the
    owner asked for; the button only ever rerolled an identical library
-   at real API cost. Cache still lives OUTSIDE the tellylog:v1 schema
+   at real API cost. v2.7.0 added the refresh gate on top: library
+   change alone no longer triggers a call, see refreshGate.js for the
+   exact thresholds. Cache still lives OUTSIDE the tellylog:v1 schema
    (derived data does not belong in backups) and the card renders only
    when /api/health reports the LLM key. */
 import React, { useEffect, useState } from 'react';
 import * as Store from '../lib/store.js';
 import * as AI from '../lib/ai.js';
+import { refreshDecision, policyLine } from '../lib/refreshGate.js';
 import { Notice } from './shared.jsx';
 
 const TASTE_KEY = 'tellylog:taste:v1';
@@ -38,16 +41,20 @@ export default function InsightsSection() {
     const lib = Store.librarySummary();
     if (!lib) return;
     const h = hash(lib);
-    try {
-      const cached = JSON.parse(localStorage.getItem(TASTE_KEY) || 'null');
-      if (cached && cached.h === h && cached.summary) { setTaste(cached.summary); return; }
-    } catch (e) { /* fall through to fetch */ }
+    const units = Store.signalUnits();
+    /* v2.7.0 refresh gate: a changed library serves the STALE summary
+       until 5+ days and 6+ signal units have passed. First generation
+       is immediate. Same policy as the Explore rails, one module. */
+    let cached = null;
+    try { cached = JSON.parse(localStorage.getItem(TASTE_KEY) || 'null'); } catch (e) { cached = null; }
+    const usable = cached && cached.summary ? cached : null;
+    if (refreshDecision(usable, h, units) !== 'generate' && usable) { setTaste(usable.summary); return; }
     let alive = true;
     setTasteBusy(true); setTasteErr('');
     AI.tasteSummary(lib).then((res) => {
       if (!alive) return;
       setTaste(res.summary);
-      try { localStorage.setItem(TASTE_KEY, JSON.stringify({ h: h, summary: res.summary, ts: Date.now() })); } catch (e) { /* cache only */ }
+      try { localStorage.setItem(TASTE_KEY, JSON.stringify({ h: h, u: units, summary: res.summary, ts: Date.now() })); } catch (e) { /* cache only */ }
       setTasteBusy(false);
     }).catch((e) => {
       if (!alive) return;
@@ -67,7 +74,7 @@ export default function InsightsSection() {
       {tasteErr ? <Notice>{tasteErr}</Notice> :
         taste ? <p className="taste-card__body">{taste}</p> :
         tasteBusy ? <p className="taste-card__body taste-card__body--dim">Reading your library…</p> : null}
-      <div className="fineprint">Updates by itself whenever your library changes.</div>
+      <div className="fineprint">{policyLine()}</div>
     </div>
   );
 }

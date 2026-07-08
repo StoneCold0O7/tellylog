@@ -1,97 +1,45 @@
 # TellyLog
 
-A self-hosted replacement for the TV Time app, built when that app announced its shutdown. Tracks TV shows episode by episode, keeps a film watchlist, shows upcoming episodes for tracked shows and rebuilds the classic TV Time profile stats (total TV time, episodes watched). Imports TV Time, Netflix, Letterboxd and IMDb exports so years of watch history are not lost.
+A TV and film tracker that keeps your data in your own browser and keeps its AI on a leash. Live at [tellylog-3d2u.vercel.app](https://tellylog-3d2u.vercel.app). Built across roughly a dozen working sessions, directed by a person, written by Claude.
 
-Formerly TellyLog. All data lives in your browser. No accounts, no tracking.
+This README leads with decisions rather than features, because the decisions are the product. The app is the evidence. If you only read one section, read the next one.
 
-## Features
+## The decision record
 
-- **Shows tab**: a Tonight card with the single most likely next episode, an Up Next queue, a "Still watching?" keep-or-drop bucket for shows untouched for 30+ days and full watched history
-- **Show pages**: synopsis, genres, year range, TMDB rating, cast, GB streaming availability (data by JustWatch via TMDB), trailers, episode stills with one-line overviews, air and watched dates, per-season progress and a pinned next-unwatched highlight
-- **Episode tracking**: check off single episodes, whole seasons or entire shows; progress bars per show and per season
-- **Upcoming tab**: future episodes of tracked shows grouped by day
-- **Films tab**: watchlist and watched list with runtime stats
-- **Explore tab**: search any show or film plus weekly trending, powered by TMDB. An optional natural-language "ask what to watch" box appears when the owner deploys the serverless functions with an Anthropic API key (see VERCEL-SETUP.md)
-- **Profile stats**: total TV time in months / days / hours and episode count, matching TV Time's profile card
-- **Multi-source import**: one wizard handles TV Time, Netflix viewing activity, Letterboxd and IMDb CSV exports, auto-detected from the file's headers. Show names are matched against TMDB with a similarity score; confident matches are accepted automatically and ambiguous ones ask for confirmation
-- **Backup and restore**: one-click JSON export of everything, restorable on any machine. TellyLog-era backups restore unchanged
-- **Themes**: dark by default, light available in Profile
+**The grounding principle.** No AI feature ships until it has real data underneath it. The natural-language ask box was specified in the very first strategy session but held dormant behind a health-check gate until a genuine watch history existed, because an LLM feature demonstrated on fake data is demo theatre. The recommendation rails were gated the same way: they were not built until a manual logging campaign had put the owner's real top shows into the library. When the planned TV Time export died, the gate did not die with it; it was satisfied the slow way, by hand.
 
-## Setup
+**Grounding is structural, not aspirational.** The "Because you watch" rails on Explore never let the model choose what they are about. Anchors are the user's dominant genres, computed locally from rewatch-weighted watched minutes and the evidence line under each rail ("Built on X, Y and Z from your library") is assembled client-side from the real titles that earned the genre. The model only fills picks. It can produce a weak recommendation. It cannot produce a fake premise or fake evidence, because it is never asked for either. Every pick is then resolved against TMDB; anything that does not resolve is dropped, not faked. Empty results are never cached, so a one-off bad answer retries instead of sticking.
 
-You need one thing: a free TMDB API key.
+**The deterministic-versus-LLM split.** Voice insights ("what is my most watched show?") are answered locally by a small matcher over the user's own stats, with zero model calls. The cheapest correct architecture for exact questions is no model at all: the numbers are already in localStorage and arithmetic does not hallucinate. Unmatched questions get a help line, never a guess. The LLM is reserved for the two jobs that genuinely need judgment over taste: open-ended recommendations and the taste summary.
 
-1. Create an account at [themoviedb.org](https://www.themoviedb.org/signup)
-2. Go to Settings → API → Create → Developer, fill in the short form (personal use is fine)
-3. Copy the **API Key (v3 auth)**
+**The cost gate (v2.7.0).** AI output does not refresh just because the library changed. Both AI surfaces, the Explore rails and the Profile taste summary, follow one documented policy: the first generation is immediate and after that a cached result is served, even stale, until BOTH of these hold: at least **5 days** since the last generation and at least **6 signal units** of change since it. A signal unit is a change that genuinely moves the taste profile: each show started counts one, each film watched counts one, each rating set counts one, each extra watch-through counts one and every ten episodes ticked count one. Ticking three episodes of a show you are already deep into is not a taste event; six new films is. The thresholds live in one module (`src/lib/refreshGate.js`), the UI fineprint states the policy and this paragraph is the documentation of record. The effect is that API spend tracks real taste change rather than every tap.
 
-Run locally:
+**Scope-outs are cost-versus-value judgments, on the record.** Accounts and Supabase were rejected because a single-user localStorage app gains nothing from a backend except liability. An embeddings recommender was rejected on infrastructure cost when a grounded prompt does the job. Whisper voice was rejected on cost and later satisfied free by the browser's own Web Speech API. A native iOS build was rejected in favour of the PWA path this repo now ships. Per-provider streaming deep links were rejected because TMDB carries exactly one JustWatch link per title and region, so hardcoding provider URL schemes would rot silently and dodge the attribution the data licence rides on. Chart libraries were rejected entirely; every chart is hand-rolled SVG.
 
-```bash
-npm install
-npm run dev
-```
+**Reversals are kept, not buried.** The app was renamed Logline, then reverted to TellyLog to match its domain. An earlier rename to Kino was killed on discovering a live same-category competitor with an AI feature under that exact name. An episode-level ratings proposal was rejected in audit (near-zero coverage economics, no consumer for the data) and rebuilt as title-level ratings, which now feed the AI grounding so the model reads loved differently from merely finished. The v2.6.0 title-anchored rails were replaced in v2.7.0 by genre rails on an owner ruling; the session log records that the grounding thesis survived the change intact. A proposal to remove the archive feature was rejected because watchlist and archive are different states (not started versus started and shelved); both exist. A manual refresh button on the taste summary was removed because it only ever rerolled identical input at real API cost.
 
-On first load the app asks for your TMDB key. The key is stored in your browser's localStorage only. It is never written into the code and never sent anywhere except directly to TMDB.
-
-## Deploying
-
-The app is a Vite build deployed on Vercel. Connect the repo, accept the Vite preset and deploy. The optional serverless functions in `api/` activate automatically once the environment variables described in `VERCEL-SETUP.md` exist; without them the deployed app behaves exactly like the static build.
-
-## Importing your history
-
-Open Profile → Import TV Time export and pick any of these files. The wizard detects the source automatically:
-
-**TV Time** (Settings → export, or via their support email). Full episode-level history with dates, with a column-mapping step before matching.
-
-**Netflix** (Account → Profile → Viewing activity → Download all). Netflix only exports episode *names*, not numbers, so TellyLog resolves each name against TMDB's episode list per season. Titles like "Dark: Season 1: Secrets" become tracked episodes; plain titles become films.
-
-**Letterboxd** (Settings → Data → Export). watched.csv logs films with dates, watchlist.csv fills the Films watchlist. Export years disambiguate remakes.
-
-**IMDb** (Your Ratings → Export). Films are logged as watched; TV series are added with no episodes marked because the export carries no episode-level data.
-
-**TellyLog backup** (.json) restores everything from another device. Backups made under the short-lived Logline name work identically.
-
-Sample files for every source live in `sample-data/`.
+**One incident, kept honest.** Mid-build, an env var was pasted containing a whole curl example rather than the bare key and the resulting crash echoed key-shaped text into the UI. The fix was structural: key-format validation, redaction of key-shaped strings in every error path and a key rotation. It is in the session logs because a decision record that omits its incidents is marketing.
 
 ## Architecture
 
-```
-index.html               app shell
-src/main.jsx             React entry
-src/styles.css           two themes via CSS custom properties, 680px column
-src/lib/util.js          pure functions: CSV parser, column guesser, name
-                         similarity, date parsing, duration formatting,
-                         provider and video shaping
-src/lib/store.js         all state + persistence (localStorage), selectors,
-                         import merge, JSON backup and restore
-src/lib/tmdb.js          TMDB v3 client with in-memory cache and a
-                         concurrency limiter
-src/lib/ai.js            client for the optional serverless ask feature
-src/components/          React components, one file per surface
-src/hooks/useStore.js    useSyncExternalStore bridge to the store
-api/                     Vercel serverless functions: health probe, TMDB
-                         proxy, LLM ask endpoint (all optional, all inert
-                         without their env vars)
-tests/                   node assert suites for util and store plus a
-                         vitest + jsdom smoke suite
-```
+React 18 plus Vite, plain JSX. No TypeScript, no router library, no state library, no chart library: a custom hash-route hook, localStorage under a versioned key (`tellylog:v1`) and hand-rolled SVG charts. The schema law is additive fields only, never rename or repurpose, so any old backup restores forever; every schema change ships with a restore test.
 
-Run the tests:
+Three serverless functions on Vercel. `/api/health` is a capability probe exposing booleans only. `/api/tmdb` is a flat allowlisted proxy so no TMDB key ships to visitors, with a deliberate fallback: if the proxy is absent the app degrades to the visitor's own key instead of bricking. `/api/ask` is the single AI endpoint serving three modes (ask, taste, rails) behind one durable rate limiter (Upstash Redis, 10 requests per 10 minutes per IP, with an in-memory fallback so the feature can never go down because the limiter did). The Anthropic key lives only in a Vercel env var. Model: Claude Haiku, chosen because these are small, well-constrained JSON jobs.
 
-```bash
-npm test
-```
+Derived AI data (rails cache, taste cache) lives in separate localStorage keys outside the schema, because derived data does not belong in backups.
 
-## Privacy
+The PWA layer is deliberately minimal: a manifest plus an offline-shell service worker that caches the app shell and hashed static assets, never touches `/api/*` and never caches cross-origin. A cache-everything worker was rejected: on a Vercel-deployed SPA whose data already lives in localStorage, aggressive caching buys almost nothing at real invalidation risk.
 
-- All watch data is stored in `localStorage` under the key `tellylog:v1` (the key predates the rename and is kept so existing data survives)
-- Network calls go to `api.themoviedb.org` for metadata, `image.tmdb.org` for posters and `img.youtube.com` for trailer thumbnails
-- If the owner enables the ask feature, questions plus a compact summary of the library go to the owner's own serverless endpoint and from there to Anthropic. The box does not exist otherwise
-- Clearing browser data deletes everything, so use Profile → Download backup periodically
+## Features, as evidence
 
-## Credits
+Track shows and films with episode-level ticking, a Tonight-first home screen, a near-finish nudge and a Keep/Drop flow that reframes the stale pile as a decision rather than guilt. Import from TV Time, Netflix, Letterboxd or IMDb CSV exports through a fuzzy-matching wizard. Stats in an opt-in modal: minute-weighted genre bars, a primary-genre donut that honestly sums to 100%, a monthly activity line, all clickable through to the contributing titles, with unattributed minutes disclosed as a coverage percentage. Rewatch counts multiply time in the stats but never distinct counts; the captions disclose exactly that. Title ratings feed the AI grounding. Ask Claude anything about what to watch next, by voice if you like; ask it about your own stats and no model is called at all. Genre recommendation rails grounded in your real history, refreshed on the documented cost gate. Dark and light themes, installable as an app, backup and restore as a single JSON file. Nothing ever leaves your browser except the questions you explicitly ask.
 
-Show and film metadata from [TMDB](https://www.themoviedb.org/). This product uses the TMDB API but is not endorsed or certified by TMDB. Streaming availability data by [JustWatch](https://www.justwatch.com), licensed through TMDB.
+## Colophon
 
-Interface design inspired by the TV Time app.
+TellyLog was designed and directed by Anmol ([StoneCold0O7](https://github.com/StoneCold0O7)) and built with Claude (Anthropic). Every line of code was written by the model. Every decision about what to build, what to refuse and what to reverse was made by a person, under an audit-first contract: each session opened with Claude stress-testing the brief before anything was built, owner proposals were rejected on the record, Claude recommendations were overruled on the record and both directions of pushback are preserved in the `SESSION-LOG*.md` files in this repo. The in-app version of this colophon lives at `#/colophon` on the live site. The point of the project is exactly this record: judgment over decoration, in public.
+
+## Running it
+
+`npm install`, then `npm run dev`. `npm test` runs the node logic suites plus the vitest component suite. Deploys are Vercel auto-deploys from main; set `ANTHROPIC_API_KEY`, `TMDB_API_KEY` and optionally the Upstash env vars to light up the serverless features, or run with none of them and the app degrades gracefully to a bring-your-own-TMDB-key tracker.
+
+Metadata and posters from [TMDB](https://www.themoviedb.org/). Watch-provider data via [JustWatch](https://www.justwatch.com/). This product uses the TMDB API but is not endorsed or certified by TMDB.

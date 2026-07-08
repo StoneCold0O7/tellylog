@@ -1,19 +1,24 @@
-/* v2.6.0: "Because you watched X" rails on Explore, below trending.
-   Anchors are chosen LOCALLY from real watch data (Store.railAnchors),
-   the LLM only fills picks under them, so a hallucinating model can
-   produce a weak pick but never a fake premise. ONE serverless call
-   returns every rail as JSON; the result, INCLUDING the TMDB-resolved
-   cards, is cached in tellylog:rails:v1 OUTSIDE the tellylog:v1 schema
-   (derived data does not belong in backups), keyed on a hash of the
-   library summary plus the anchors, so both the LLM and TMDB are hit
-   only when the library actually changes. Every pick opens the
-   existing TitleModal preview; nothing enters the library without an
-   explicit tap. Thin-library honesty is structural: the server returns
-   a note plus a per-rail basis and this component renders them. */
+/* v2.7.0: genre rails on Explore, replacing the v2.6.0 title-anchored
+   rails on the owner's ruling (Netflix-style: one row per dominant
+   genre, "Because you watch DRAMA"). Grounding is unchanged in kind
+   and stronger in degree: anchors come from Store.genreRailAnchors()
+   (rewatch-weighted watched minutes, local, deterministic) and the
+   basis line under each rail is now built CLIENT-SIDE from the real
+   titles that earned the genre, so neither the premise nor the
+   evidence can be hallucinated. The LLM only fills picks. Still ONE
+   serverless call (mode:'rails', shared limiter), strict JSON
+   sanitised on both sides, results cached WITH their TMDB-resolved
+   cards in tellylog:rails:v1, empty results never cached.
+
+   v2.7.0 also adds the refresh gate (refreshGate.js): a changed
+   library no longer regenerates on sight. The cached rails are served
+   stale until 5+ days AND 6+ signal units have passed, so API spend
+   tracks real taste change. First generation is immediate. */
 import React, { useEffect, useState } from 'react';
 import * as Store from '../lib/store.js';
 import * as TMDB from '../lib/tmdb.js';
 import * as AI from '../lib/ai.js';
+import { refreshDecision, policyLine } from '../lib/refreshGate.js';
 import { SectionLabel, Notice, SkeletonCards } from './shared.jsx';
 import ResultCard from './ResultCard.jsx';
 
@@ -26,12 +31,19 @@ function hash(str) {
   return String(h);
 }
 
+function basisLine(anchor) {
+  if (!anchor.examples || !anchor.examples.length) return '';
+  var t = anchor.examples;
+  var names = t.length === 1 ? t[0] : t.slice(0, -1).join(', ') + ' and ' + t[t.length - 1];
+  return 'Built on ' + names + ' from your library.';
+}
+
 export default function RailsSection({ onAdded }) {
   const [llm, setLlm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [note, setNote] = useState('');
-  const [rails, setRails] = useState(null); // null | [{anchor, kind, basis, cards:[{item, reason}]}]
+  const [rails, setRails] = useState(null); // null | [{genre, basis, cards:[{item, reason}]}]
 
   useEffect(() => {
     let alive = true;
@@ -41,25 +53,28 @@ export default function RailsSection({ onAdded }) {
 
   useEffect(() => {
     if (!llm) return;
-    const anchors = Store.railAnchors();
-    if (anchors.length === 0) return; // nothing watched yet: no rails, no fake ones either
+    const anchors = Store.genreRailAnchors();
+    if (anchors.length === 0) return; // no genre has 2+ watched titles yet: no rails, no fake ones either
     const lib = Store.librarySummary();
-    const h = hash(lib + '|' + anchors.map((a) => a.kind + ':' + a.title).join('|'));
-    try {
-      const cached = JSON.parse(localStorage.getItem(RAILS_KEY) || 'null');
-      if (cached && cached.h === h && Array.isArray(cached.rails) && cached.rails.length) {
-        setRails(cached.rails);
-        setNote(cached.note || '');
-        return;
-      }
-    } catch (e) { /* fall through to fetch */ }
+    const h = hash(lib + '|' + anchors.map((a) => a.kind + ':' + a.genre).join('|'));
+    const units = Store.signalUnits();
+
+    let cached = null;
+    try { cached = JSON.parse(localStorage.getItem(RAILS_KEY) || 'null'); } catch (e) { cached = null; }
+    const usable = cached && Array.isArray(cached.rails) && cached.rails.length ? cached : null;
+    const decision = refreshDecision(usable, h, units);
+    if (decision !== 'generate' && usable) {
+      setRails(usable.rails);
+      setNote(usable.note || '');
+      return;
+    }
 
     let alive = true;
     setBusy(true); setErr('');
     AI.rails(lib, anchors).then((res) => {
       /* Resolve each pick against TMDB so cards carry real ids and
          posters. Unresolvable picks are dropped, not faked. */
-      return Promise.all(res.rails.map((r) => {
+      return Promise.all(res.rails.map((r, i) => {
         return Promise.all(r.picks.map((p) => {
           const search = p.mediaType === 'movie' ? TMDB.searchMovie(p.title, p.year || undefined) : TMDB.searchTV(p.title);
           return search.then((out) => {
@@ -69,7 +84,8 @@ export default function RailsSection({ onAdded }) {
             return { item: hit, reason: p.reason };
           }).catch(() => null);
         })).then((cards) => ({
-          anchor: r.anchor, kind: r.kind, basis: r.basis,
+          genre: r.anchor,
+          basis: anchors[i] ? basisLine(anchors[i]) : '',
           cards: cards.filter(Boolean)
         }));
       })).then((resolved) => ({ resolved: resolved.filter((r) => r.cards.length), note: res.note }));
@@ -79,9 +95,9 @@ export default function RailsSection({ onAdded }) {
       setNote(out.note);
       setBusy(false);
       /* Cache only a non-empty result so a one-off bad answer is
-         retried instead of pinned until the next library change. */
+         retried instead of pinned until the gate next opens. */
       if (out.resolved.length) {
-        try { localStorage.setItem(RAILS_KEY, JSON.stringify({ h: h, rails: out.resolved, note: out.note, ts: Date.now() })); } catch (e) { /* cache only */ }
+        try { localStorage.setItem(RAILS_KEY, JSON.stringify({ h: h, u: units, rails: out.resolved, note: out.note, ts: Date.now() })); } catch (e) { /* cache only */ }
       }
     }).catch((e) => {
       if (!alive) return;
@@ -100,13 +116,13 @@ export default function RailsSection({ onAdded }) {
       {note ? <div className="rails__note">{note}</div> : null}
       {busy ? (
         <>
-          <SectionLabel>BECAUSE YOU WATCHED…</SectionLabel>
+          <SectionLabel>BECAUSE YOU WATCH…</SectionLabel>
           <SkeletonCards n={4} />
         </>
       ) : null}
       {(rails || []).map((r) => (
-        <div className="rail" key={r.kind + '-' + r.anchor}>
-          <SectionLabel>{'BECAUSE YOU WATCHED ' + r.anchor.toUpperCase()}</SectionLabel>
+        <div className="rail" key={'genre-' + r.genre}>
+          <SectionLabel>{'BECAUSE YOU WATCH ' + String(r.genre).toUpperCase()}</SectionLabel>
           {r.basis ? <div className="rail__basis">{r.basis}</div> : null}
           <div className="grid">
             {r.cards.map((c) => <ResultCard key={c.item.media_type + '-' + c.item.id} item={c.item} onAdded={onAdded} />)}
@@ -114,7 +130,7 @@ export default function RailsSection({ onAdded }) {
         </div>
       ))}
       {rails && rails.length > 0 ? (
-        <div className="fineprint">Grounded in your own watch history via Claude, refreshed only when your library changes. Posters and metadata from TMDB. Tap any card to preview before adding.</div>
+        <div className="fineprint">Grounded in your own watch history via Claude. {policyLine()} Posters and metadata from TMDB. Tap any card to preview before adding.</div>
       ) : null}
     </div>
   );

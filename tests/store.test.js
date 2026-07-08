@@ -597,25 +597,65 @@ t('librarySummary carries rating and rewatch tags for AI grounding', () => {
   assert.ok(lib.indexOf('GenFilm (3/5, watched 4 times)') !== -1);
 });
 
-t('railAnchors: shows first by rewatch-weighted minutes, then one film, watched only', () => {
+t('genreRailAnchors: top genres by minutes, 2-title minimum, dominant kind, examples', () => {
   Store.clearAll();
-  Store.addShow(fakeDetails(70, 'Small', { 1: 2 }, 30));   // 60 min
-  Store.markSeason(70, 1, 2, true);
-  Store.addShow(fakeDetails(71, 'Big', { 1: 10 }, 30));    // 300 min
-  Store.markSeason(71, 1, 10, true);
-  Store.addShow(fakeDetails(72, 'Boosted', { 1: 3 }, 30)); // 90 min x5 = 450
-  Store.markSeason(72, 1, 3, true);
-  Store.setRewatchCount('tv', 72, 5);
-  Store.addShow(fakeDetails(73, 'Unwatched', { 1: 8 }, 30)); // excluded
-  Store.addMovie({ id: 74, title: 'FilmAnchor', runtime: 100, genres: [], release_date: '2020-01-01' });
+  Store.addShow({ ...fakeDetails(70, 'CrimeBig', { 1: 10 }, 30), genres: [{ name: 'Crime' }, { name: 'Drama' }] });
+  Store.markSeason(70, 1, 10, true);                       // 300 min
+  Store.addShow({ ...fakeDetails(71, 'CrimeSmall', { 1: 2 }, 30), genres: [{ name: 'Crime' }] });
+  Store.markSeason(71, 1, 2, true);                        // 60 min
+  Store.addShow({ ...fakeDetails(72, 'LoneSciFi', { 1: 8 }, 30), genres: [{ name: 'Sci-Fi' }] });
+  Store.markSeason(72, 1, 8, true);                        // one carrier only: excluded
+  Store.addMovie({ id: 74, title: 'DramaFilm', runtime: 100, genres: [{ name: 'Drama' }], release_date: '2020-01-01' });
   Store.setMovieWatched(74, true);
-  const a = Store.railAnchors();
-  assert.deepStrictEqual(a.map((x) => x.title), ['Boosted', 'Big', 'Small', 'FilmAnchor']);
-  assert.strictEqual(a[3].kind, 'movie');
-  assert.strictEqual(a.length, 4); // 3-4 rail ruling: capped at 4
+  const a = Store.genreRailAnchors();
+  /* Overlap crediting, same ruling as the charts: CrimeBig carries
+     both genres, so Drama = 300+100 = 400 min beats Crime = 360. */
+  assert.deepStrictEqual(a.map((x) => x.genre), ['Drama', 'Crime']);
+  assert.strictEqual(a[0].kind, 'tv');                     // 300 of 400 min = 75% tv
+  assert.strictEqual(a[1].kind, 'tv');                     // 100% tv minutes
+  assert.deepStrictEqual(a[0].examples, ['CrimeBig', 'DramaFilm']);
+  assert.deepStrictEqual(a[1].examples, ['CrimeBig', 'CrimeSmall']);
+  assert.ok(a.find((x) => x.genre === 'Sci-Fi') === undefined); // one carrier: no rail
 });
 
+t('genreRailAnchors: mixed kind when neither medium reaches 70% of minutes', () => {
+  Store.clearAll();
+  Store.addShow({ ...fakeDetails(80, 'HalfShow', { 1: 4 }, 30), genres: [{ name: 'Comedy' }] });
+  Store.markSeason(80, 1, 4, true);                        // 120 min tv
+  Store.addMovie({ id: 81, title: 'HalfFilm', runtime: 120, genres: [{ name: 'Comedy' }], release_date: '2020-01-01' });
+  Store.setMovieWatched(81, true);                         // 120 min movie
+  const a = Store.genreRailAnchors();
+  assert.strictEqual(a.length, 1);
+  assert.strictEqual(a[0].kind, 'mixed');
+});
+
+t('signalUnits: shows started, films, ratings, rewatches and per-10-episode blocks', () => {
+  Store.clearAll();
+  Store.addShow(fakeDetails(90, 'Binge', { 1: 25 }, 30));
+  Store.markSeason(90, 1, 25, true);                       // 1 started + 2 episode blocks
+  Store.setRating('tv', 90, 5);                            // +1
+  Store.setRewatchCount('tv', 90, 3);                      // +2 extra passes
+  Store.addMovie({ id: 91, title: 'F1', runtime: 100, genres: [], release_date: '2020-01-01' });
+  Store.setMovieWatched(91, true);                         // +1
+  Store.setRating('movie', 91, 4);                         // +1
+  assert.strictEqual(Store.signalUnits(), 8);
+  Store.addShow(fakeDetails(92, 'Untouched', { 1: 8 }, 30)); // tracked, unwatched: no unit
+  assert.strictEqual(Store.signalUnits(), 8);
+});
 /* ---------- v2.6.0: deterministic voice insights ---------- */
+
+/* Fixture the QA tests read: rebuilt here because the anchor tests
+   above now leave different state behind (v2.7.0 edit). */
+Store.clearAll();
+Store.addShow(fakeDetails(70, 'Small', { 1: 2 }, 30));
+Store.markSeason(70, 1, 2, true);
+Store.addShow(fakeDetails(71, 'Big', { 1: 10 }, 30));
+Store.markSeason(71, 1, 10, true);
+Store.addShow(fakeDetails(72, 'Boosted', { 1: 3 }, 30));
+Store.markSeason(72, 1, 3, true);
+Store.setRewatchCount('tv', 72, 5);
+Store.addMovie({ id: 74, title: 'FilmAnchor', runtime: 100, genres: [], release_date: '2020-01-01' });
+Store.setMovieWatched(74, true);
 
 const QA = await import('../src/lib/insightsQA.js');
 

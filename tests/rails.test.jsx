@@ -1,4 +1,4 @@
-/* v2.6.0 client tests: the rails() contract in ai.js plus the
+/* v2.7.0 client tests: the genre rails() contract in ai.js plus the
    RailsSection gates (no LLM key = nothing renders, empty library =
    nothing renders, no fake rails either way). fetch is mocked. */
 import React from 'react';
@@ -34,22 +34,24 @@ describe('ai.rails()', () => {
     const fetchMock = vi.fn(() => jsonResponse({
       note: 'thin library',
       rails: [{
-        anchor: 'Alpha', kind: 'tv', basis: 'crime pacing',
+        anchor: 'Crime',
         picks: Array.from({ length: 9 }, (_, i) => ({ title: 'P' + i, year: '2020', mediaType: 'tv', reason: 'r' }))
       }]
     }));
     vi.stubGlobal('fetch', fetchMock);
-    const res = await AI.rails('lib text', [{ title: 'Alpha', kind: 'tv' }]);
+    const res = await AI.rails('lib text', [{ genre: 'Crime', kind: 'tv', examples: ['A', 'B'] }]);
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(body.mode).toBe('rails');
-    expect(body.anchors[0].title).toBe('Alpha');
+    expect(body.anchors[0].genre).toBe('Crime');
+    expect(body.anchors[0].examples).toEqual(['A', 'B']);
     expect(res.note).toBe('thin library');
-    expect(res.rails[0].picks.length).toBe(6); // capped client-side too
+    expect(res.rails[0].anchor).toBe('Crime');
+    expect(res.rails[0].picks.length).toBe(5); // 4-5 picks ruling: capped client-side too
   });
 
   it('surfaces the server explanation on failure', async () => {
     vi.stubGlobal('fetch', vi.fn(() => jsonResponse({ error: 'Too many asks from this address. Try again in a few minutes.' }, 429)));
-    await expect(AI.rails('lib', [{ title: 'A', kind: 'tv' }])).rejects.toThrow(/Too many asks/);
+    await expect(AI.rails('lib', [{ genre: 'Crime', kind: 'tv', examples: [] }])).rejects.toThrow(/Too many asks/);
   });
 });
 

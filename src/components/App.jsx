@@ -17,9 +17,10 @@ import ImportWizard from './ImportWizard.jsx';
 import OnboardingGrid from './OnboardingGrid.jsx';
 import StatsModal from './StatsModal.jsx';
 import DataModal from './DataModal.jsx';
+import ColophonPage from './ColophonPage.jsx';
 import { IconTv, IconCalendar, IconFilm, IconSearch, IconUser } from './Icons.jsx';
 
-const TABS = ['shows', 'upcoming', 'movies', 'explore', 'profile'];
+const TABS = ['shows', 'upcoming', 'movies', 'explore', 'profile', 'colophon'];
 const TAB_META = [
   ['shows', IconTv, 'Shows'],
   ['upcoming', IconCalendar, 'Upcoming'],
@@ -149,6 +150,7 @@ export default function App() {
           tab === 'upcoming' ? <UpcomingTab /> :
           tab === 'movies' ? <MoviesTab /> :
           tab === 'explore' ? <ExploreTab /> :
+          tab === 'colophon' ? <ColophonPage /> :
           <ProfileTab />
         )}
       </main>

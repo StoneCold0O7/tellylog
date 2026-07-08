@@ -172,7 +172,7 @@ export default function ProfileTab() {
         <button className="btn" onClick={() => openModal({ type: 'data' })}>🗂️ Manage your data</button>
       </div>
       <p className="fineprint">All data is stored in this browser only. Nothing is uploaded anywhere. Metadata comes from TMDB.</p>
-      <p className="fineprint">TellyLog is designed and built by Anmol. The code, the decision log and every reversal along the way are public: <a className="credit-link" href="https://github.com/StoneCold0O7/tellylog" target="_blank" rel="noreferrer">github.com/StoneCold0O7/tellylog</a></p>
+      <p className="fineprint">TellyLog is designed and built by Anmol. The code, the decision log and every reversal along the way are public: <a className="credit-link" href="https://github.com/StoneCold0O7/tellylog" target="_blank" rel="noreferrer">github.com/StoneCold0O7/tellylog</a> · <a className="credit-link" href="#/colophon">How this was made</a></p>
     </>
   );
 }

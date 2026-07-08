@@ -32,28 +32,32 @@ const SYSTEM_TASTE = [
   'picture is still forming.'
 ].join(' ');
 
-/* v2.6.0: Explore rails. ONE call returns every rail. Anchors are
-   chosen client-side from real watch data and passed in; the model
-   must never invent, drop or reorder them, so the "because you
-   watched" premise is real by construction. Thin-library honesty is
-   structural: the shape carries a "note" and a per-rail "basis" the
-   UI renders, rather than trusting the model to volunteer modesty. */
+/* v2.7.0: Explore rails, genre-anchored (owner ruling: Netflix-style
+   rows). ONE call returns every rail. Anchors are chosen client-side
+   from real watch data and passed in; the model must never invent,
+   drop or reorder them, so the "because you watch" premise is real by
+   construction. The basis line under each rail is built client-side
+   from the anchor's example titles, so the evidence cannot be
+   hallucinated either. Thin-library honesty stays structural via
+   "note". */
 const SYSTEM_RAILS = [
-  'You fill "Because you watched X" recommendation rails for a TV and',
-  'film tracker. You receive the user\'s watch library and a list of',
-  'anchor titles chosen from it. Reply with ONLY a JSON object, no',
-  'markdown fences, no preamble, shaped exactly like:',
-  '{"rails":[{"anchor":"the exact anchor title you were given",',
-  '"kind":"tv|movie","basis":"one short sentence naming what in the',
-  'library these picks build on","picks":[{"title":"...","year":"2021",',
-  '"mediaType":"tv|movie","reason":"one short sentence"}]}],"note":""}',
+  'You fill "Because you watch GENRE" recommendation rails for a TV',
+  'and film tracker. You receive the user\'s watch library and a list',
+  'of genre anchors chosen FROM that library, each with example titles',
+  'that earned it. Reply with ONLY a JSON object, no markdown fences,',
+  'no preamble, shaped exactly like:',
+  '{"rails":[{"anchor":"the exact genre you were given",',
+  '"picks":[{"title":"...","year":"2021","mediaType":"tv|movie",',
+  '"reason":"one short sentence"}]}],"note":""}',
   'One rail per anchor, in the exact order given. Never invent,',
-  'rename, drop or reorder anchors. 5 to 6 picks per rail. Never pick',
-  'a title already in the library. Ground every reason in what the',
-  'library actually shows. If the library is thin, do NOT fake',
-  'confidence: put one honest sentence in "note" saying the picks',
-  'lean broad until more is logged, and keep each basis modest.',
-  'Otherwise "note" must be an empty string.'
+  'rename, drop or reorder anchors. Give 5 picks per rail, never',
+  'fewer than 4. Match each rail\'s medium to its kind: "tv" rails',
+  'pick shows, "movie" rails pick films, "mixed" rails may pick both.',
+  'Never pick a title already in the library. Ground every reason in',
+  'what the library actually shows, especially the example titles.',
+  'If the library is thin, do NOT fake confidence: put one honest',
+  'sentence in "note" saying the picks lean broad until more is',
+  'logged. Otherwise "note" must be an empty string.'
 ].join(' ');
 
 /* Rate limiting: 10 asks per 10 minutes per IP.
@@ -140,16 +144,19 @@ export default async function handler(req, res) {
     res.status(400).json({ error: 'library required' });
     return;
   }
-  /* v2.6.0: anchors arrive from the client, capped at 4 and sanitised
-     to plain strings so nothing structured sneaks into the prompt. */
+  /* v2.7.0: genre anchors arrive from the client, capped at 4 and
+     sanitised to plain strings so nothing structured sneaks into the
+     prompt. Examples are the titles that earned the genre locally. */
   let anchors = [];
   if (mode === 'rails') {
     anchors = (Array.isArray(body.anchors) ? body.anchors : []).slice(0, 4)
       .map((a) => ({
-        title: String((a && a.title) || '').slice(0, 120).trim(),
-        kind: a && a.kind === 'movie' ? 'movie' : 'tv'
+        genre: String((a && a.genre) || '').slice(0, 60).trim(),
+        kind: a && a.kind === 'movie' ? 'movie' : a && a.kind === 'mixed' ? 'mixed' : 'tv',
+        examples: (Array.isArray(a && a.examples) ? a.examples : []).slice(0, 3)
+          .map((t) => String(t || '').slice(0, 120).trim()).filter(Boolean)
       }))
-      .filter((a) => a.title);
+      .filter((a) => a.genre);
     if (anchors.length === 0) {
       res.status(400).json({ error: 'anchors required' });
       return;
@@ -179,7 +186,7 @@ export default async function handler(req, res) {
           content: mode === 'taste'
             ? 'My library:\n' + library + '\n\nSummarise my taste.'
             : mode === 'rails'
-            ? 'My library:\n' + library + '\n\nAnchors, in this exact order:\n' + anchors.map((a) => '- ' + a.title + ' (' + a.kind + ')').join('\n') + '\n\nFill the rails.'
+            ? 'My library:\n' + library + '\n\nGenre anchors, in this exact order:\n' + anchors.map((a) => '- ' + a.genre + ' (' + a.kind + ')' + (a.examples.length ? ', earned by: ' + a.examples.join('; ') : '')).join('\n') + '\n\nFill the rails.'
             : 'My library:\n' + (library || '(empty)') + '\n\nQuestion: ' + question
         }]
       })
@@ -217,9 +224,7 @@ export default async function handler(req, res) {
     if (mode === 'rails') {
       const rails = (Array.isArray(parsed.rails) ? parsed.rails : []).slice(0, 4).map((r) => ({
         anchor: String((r && r.anchor) || '').slice(0, 120),
-        kind: r && r.kind === 'movie' ? 'movie' : 'tv',
-        basis: String((r && r.basis) || '').slice(0, 240),
-        picks: (Array.isArray(r && r.picks) ? r.picks : []).slice(0, 6).map((p) => ({
+        picks: (Array.isArray(r && r.picks) ? r.picks : []).slice(0, 5).map((p) => ({
           title: String((p && p.title) || '').slice(0, 160),
           year: p && p.year ? String(p.year).slice(0, 4) : '',
           mediaType: p && p.mediaType === 'movie' ? 'movie' : 'tv',

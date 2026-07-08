@@ -561,21 +561,77 @@ export function setRating(kind, id, n) {
    never a fake "because you watched" premise. Shows first (by watched
    minutes, rewatch-weighted), then one film, 4 anchors maximum per the
    3-4 rail ruling. */
-export function railAnchors() {
-  var anchors = [];
-  var shows = Object.keys(state.shows).map(function (id) { return state.shows[id]; })
-    .filter(function (sh) { return watchedCount(sh) > 0; })
-    .sort(function (a, b) { return showMinutes(b) - showMinutes(a); });
-  shows.slice(0, 3).forEach(function (sh) {
-    anchors.push({ title: sh.name, kind: 'tv' });
-  });
-  var films = Object.keys(state.movies).map(function (id) { return state.movies[id]; })
-    .filter(function (mv) { return !!mv.watchedAt; })
-    .sort(function (a, b) {
-      return (rewatchOf(b) - rewatchOf(a)) || ((b.rating || 0) - (a.rating || 0)) || ((b.watchedAt || 0) - (a.watchedAt || 0));
+/* v2.7.0: genre rails replaced the v2.6.0 title-anchored rails on the
+   owner's ruling (Netflix-style rows: one rail per dominant genre).
+   The grounding thesis survives intact and is arguably stronger:
+   anchors are still chosen LOCALLY from rewatch-weighted watched
+   minutes and now the rail's basis line is built client-side from the
+   real titles that earned the genre, so neither the premise nor the
+   evidence can be hallucinated. The LLM only ever fills picks.
+   Rules: top 4 genres by watched minutes, a genre needs at least two
+   contributing titles (one title is a fluke, not a taste), kind is the
+   dominant medium at >=70% of minutes else 'mixed', examples are the
+   top three titles by minutes for the client-rendered basis. */
+export function genreRailAnchors() {
+  var acc = {};
+  function credit(title, kind, list, minutes) {
+    if (!minutes || !Array.isArray(list)) return;
+    list.forEach(function (g) {
+      if (!acc[g]) acc[g] = { minutes: 0, tv: 0, movie: 0, titles: [] };
+      acc[g].minutes += minutes;
+      acc[g][kind] += minutes;
+      acc[g].titles.push({ title: title, minutes: minutes });
     });
-  if (films.length) anchors.push({ title: films[0].title, kind: 'movie' });
-  return anchors;
+  }
+  Object.keys(state.shows).forEach(function (id) {
+    var sh = state.shows[id];
+    var m = showMinutes(sh);
+    if (watchedCount(sh) > 0) credit(sh.name, 'tv', sh.genreList, m);
+  });
+  Object.keys(state.movies).forEach(function (id) {
+    var mv = state.movies[id];
+    if (mv.watchedAt) credit(mv.title, 'movie', mv.genreList, (mv.runtime || 100) * rewatchOf(mv));
+  });
+  return Object.keys(acc)
+    .map(function (g) { return { genre: g, data: acc[g] }; })
+    .filter(function (row) { return row.data.titles.length >= 2; })
+    .sort(function (a, b) { return b.data.minutes - a.data.minutes; })
+    .slice(0, 4)
+    .map(function (row) {
+      var d = row.data;
+      var kind = d.tv >= d.minutes * 0.7 ? 'tv' : d.movie >= d.minutes * 0.7 ? 'movie' : 'mixed';
+      d.titles.sort(function (a, b) { return b.minutes - a.minutes; });
+      return {
+        genre: row.genre,
+        kind: kind,
+        examples: d.titles.slice(0, 3).map(function (t) { return t.title; })
+      };
+    });
+}
+
+/* v2.7.0: signal units, the currency of the AI refresh gate (see
+   refreshGate.js). Counts changes that genuinely move the taste
+   profile: shows started, films watched, ratings set, extra
+   watch-throughs, plus one unit per ten ticked episodes so a long
+   binge registers without every single tick counting. */
+export function signalUnits() {
+  var units = 0;
+  var episodes = 0;
+  Object.keys(state.shows).forEach(function (id) {
+    var sh = state.shows[id];
+    var seen = watchedCount(sh);
+    if (seen > 0) units += 1;
+    episodes += seen;
+    if (sh.rating) units += 1;
+    units += rewatchOf(sh) - 1;
+  });
+  Object.keys(state.movies).forEach(function (id) {
+    var mv = state.movies[id];
+    if (mv.watchedAt) units += 1;
+    if (mv.rating) units += 1;
+    units += rewatchOf(mv) - 1;
+  });
+  return units + Math.floor(episodes / 10);
 }
 
 /* rows: [{genre, minutes}] desc. Multi-genre titles contribute their

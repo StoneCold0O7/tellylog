@@ -75,10 +75,11 @@ export function tasteSummary(library) {
   });
 }
 
-/* v2.6.0: one-shot Explore rails. Same endpoint, rails mode, so it
-   shares the key gate and the rate limiter. anchors come from
-   Store.railAnchors(), never from the model. Resolves to
-   { rails:[{anchor, kind, basis, picks:[{title, year, mediaType,
+/* v2.7.0: one-shot Explore rails, now genre-anchored. Same endpoint,
+   rails mode, so it shares the key gate and the rate limiter. anchors
+   come from Store.genreRailAnchors(), never from the model; the basis
+   line is built client-side so it is not part of this contract.
+   Resolves to { rails:[{anchor, picks:[{title, year, mediaType,
    reason}]}], note } or rejects with a message safe to show. */
 export function rails(library, anchors) {
   return fetch('/api/ask', {
@@ -97,9 +98,7 @@ export function rails(library, anchors) {
       rails: Array.isArray(data.rails) ? data.rails.slice(0, 4).map(function (r) {
         return {
           anchor: String(r.anchor || ''),
-          kind: r.kind === 'movie' ? 'movie' : 'tv',
-          basis: String(r.basis || ''),
-          picks: Array.isArray(r.picks) ? r.picks.slice(0, 6).map(function (p) {
+          picks: Array.isArray(r.picks) ? r.picks.slice(0, 5).map(function (p) {
             return {
               title: String(p.title || ''),
               year: p.year ? String(p.year) : '',

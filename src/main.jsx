@@ -16,5 +16,13 @@ try {
   );
 } catch (e) { /* consoles that dislike %c */ }
 
+/* v2.7.0 PWA: register the minimal offline-shell worker, production
+   only so the Vite dev server never fights a stale shell. */
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('/sw.js').catch(function () { /* installability is a bonus, never a blocker */ });
+  });
+}
+
 Store.load();
 createRoot(document.getElementById('root')).render(<App />);
