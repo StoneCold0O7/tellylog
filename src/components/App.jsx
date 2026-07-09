@@ -38,6 +38,13 @@ function initialTab() {
 export default function App() {
   useStoreRev();
   const [tab, setTab] = useState(initialTab);
+  /* v2.7.2: which trending section Explore should lead with. Set per
+     navigation by go(); 'movies' puts TRENDING FILMS first so "Browse
+     all movies" lands on films with the search and ask bars still on
+     screen, instead of scrolling past trending shows. Reset to null on
+     every ordinary navigation, so the Explore tab itself keeps its
+     default shows-first order. */
+  const [exploreFocus, setExploreFocus] = useState(null);
   const [moviesSub, setMoviesSub] = useState('watchlist');
   const [modal, setModal] = useState(null); // {type:'show',id} | {type:'settings'} | {type:'import'} | null
   const [toastMsg, setToastMsg] = useState('');
@@ -51,7 +58,8 @@ export default function App() {
     toastTimer.current = setTimeout(() => setToastOn(false), 2600);
   }, []);
 
-  const go = useCallback((t) => {
+  const go = useCallback((t, focus) => {
+    setExploreFocus(focus || null);
     setTab(t);
     location.hash = '#/' + t;
     window.scrollTo(0, 0);
@@ -127,7 +135,7 @@ export default function App() {
   const canBrowse = hasKey || tmdbMode === 'proxy';
   const booting = !canBrowse && tmdbMode === null;
 
-  const ctx = { go, toast, openShow, openPreview, openModal: setModal, closeModal, moviesSub, setMoviesSub, offerGrid };
+  const ctx = { go, toast, openShow, openPreview, openModal: setModal, closeModal, moviesSub, setMoviesSub, offerGrid, exploreFocus };
 
   if (booting) {
     return (

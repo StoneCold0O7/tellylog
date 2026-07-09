@@ -276,6 +276,29 @@ export function history(limit) {
   }).filter(function (x) { return !!x.show; });
 }
 
+/* v2.7.2: per-show aggregate for the history "By show" view. One row
+   per show with at least one ticked episode, archived included (they
+   still count in stats), watchlist naturally excluded (zero ticks by
+   definition). Percent is DISTINCT ticked episodes over known total,
+   capped at 100: rewatches never inflate it, consistent with the
+   ticked-episodes-only rule from v2.6.0. seen is display-capped at
+   total in case season metadata shrank under old ticks. */
+export function showProgressList() {
+  var out = [];
+  Object.keys(state.shows).forEach(function (id) {
+    var sh = state.shows[id];
+    var seen = watchedCount(sh);
+    if (seen === 0) return;
+    var total = totalEpisodes(sh);
+    var pct = total > 0 ? Math.min(100, Math.round((seen / total) * 100)) : 100;
+    out.push({ show: sh, seen: total > 0 ? Math.min(seen, total) : seen, total: total, pct: pct });
+  });
+  out.sort(function (a, b) {
+    return (b.show.lastWatchedAt || b.show.added) - (a.show.lastWatchedAt || a.show.added);
+  });
+  return out;
+}
+
 export function upcoming() {
   var out = [];
   Object.keys(state.shows).forEach(function (id) {
@@ -754,6 +777,15 @@ export function apiKey() { return state.settings.apiKey; }
    compressed data URLs. They ride inside backups like every other
    setting; the UI downscales before calling these so a phone photo
    cannot blow the localStorage quota. null clears. */
+/* v2.7.2: the name was in the schema since Phase 0 (default 'You',
+   only ever surfaced as the avatar initial) but no UI could edit it.
+   Setter trims, caps at 30 chars and falls back to 'You' on empty, so
+   the avatar initial can never render from an empty string. */
+export function profileName() { return state.settings.profileName || 'You'; }
+export function setProfileName(name) {
+  state.settings.profileName = String(name || '').trim().slice(0, 30) || 'You';
+  save();
+}
 export function setAvatar(dataUrl) { state.settings.avatar = dataUrl || ''; save(); }
 export function avatar() { return state.settings.avatar || ''; }
 export function setCover(dataUrl) { state.settings.cover = dataUrl || ''; save(); }

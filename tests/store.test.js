@@ -680,4 +680,54 @@ t('insightsQA returns null for unmatched questions instead of guessing', () => {
   assert.strictEqual(QA.answerInsight('what is the meaning of life'), null);
 });
 
+/* ---------- v2.7.2: history aggregate + profile name ---------- */
+
+t('showProgressList aggregates distinct ticks, caps at 100, includes archived, excludes unwatched', () => {
+  Store.clearAll();
+  Store.addShow(fakeDetails(80, 'Half', { 1: 10 }, 30));
+  Store.markSeason(80, 1, 5, true);
+  Store.addShow(fakeDetails(81, 'Done', { 1: 4 }, 30));
+  Store.markSeason(81, 1, 4, true);
+  Store.setRewatchCount('tv', 81, 3);                     // rewatches must NOT inflate %
+  Store.setArchived(81, true);                            // archived still aggregates
+  Store.addShow(fakeDetails(82, 'Untouched', { 1: 8 }, 30)); // zero ticks: excluded
+  const list = Store.showProgressList();
+  assert.strictEqual(list.length, 2);
+  const half = list.filter(function (p) { return p.show.id === 80; })[0];
+  const done = list.filter(function (p) { return p.show.id === 81; })[0];
+  assert.strictEqual(half.seen, 5);
+  assert.strictEqual(half.total, 10);
+  assert.strictEqual(half.pct, 50);
+  assert.strictEqual(done.pct, 100);                      // 3 watch-throughs, still 100 not 300
+});
+
+t('showProgressList caps seen and pct when season metadata shrank under old ticks', () => {
+  Store.clearAll();
+  Store.addShow(fakeDetails(83, 'Shrunk', { 1: 6 }, 30));
+  Store.markSeason(83, 1, 6, true);
+  Store.get().shows[83].seasons = { 1: 4 };               // simulate TMDB revising counts down
+  const p = Store.showProgressList()[0];
+  assert.strictEqual(p.seen, 4);
+  assert.strictEqual(p.total, 4);
+  assert.strictEqual(p.pct, 100);
+});
+
+t('setProfileName trims, caps at 30 chars and falls back to You on empty', () => {
+  Store.clearAll();
+  assert.strictEqual(Store.profileName(), 'You');
+  Store.setProfileName('  Anmol  ');
+  assert.strictEqual(Store.profileName(), 'Anmol');
+  Store.setProfileName('x'.repeat(50));
+  assert.strictEqual(Store.profileName().length, 30);
+  Store.setProfileName('   ');
+  assert.strictEqual(Store.profileName(), 'You');
+});
+
+t('restore of a backup without a profile name still yields the You fallback', () => {
+  Store.clearAll();
+  const old = JSON.stringify({ version: 1, settings: { apiKey: '' }, shows: {}, movies: {}, log: [] });
+  Store.restoreJSON(old);
+  assert.strictEqual(Store.profileName(), 'You');
+});
+
 console.log('\nAll ' + passed + ' tests passed.');

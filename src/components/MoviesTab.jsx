@@ -27,7 +27,7 @@ export default function MoviesTab() {
         {toggle}
         {sub === 'watchlist' ? (
           <EmptyState title="Your watchlist is empty!" sub="Add movies you want to watch.">
-            <div className="empty__actions"><button className="btn btn--primary" onClick={() => go('explore')}>Browse all movies</button></div>
+            <div className="empty__actions"><button className="btn btn--primary" onClick={() => go('explore', 'movies')}>Browse all movies</button></div>
           </EmptyState>
         ) : (
           <EmptyState title="No movies watched yet" sub="Mark a movie as watched and it shows up here." />

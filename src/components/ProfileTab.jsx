@@ -13,6 +13,7 @@ export default function ProfileTab() {
   const [showView, setShowView] = useState('posters'); // 'posters' | 'list'
   const [libKind, setLibKind] = useState('shows');     // 'shows' | 'films' (v2.7.1)
   const [editing, setEditing] = useState(false);
+  const [nameDraft, setNameDraft] = useState(() => Store.profileName()); // v2.7.2
   const st = Store.stats();
   const shows = Object.keys(Store.get().shows).map((id) => Store.get().shows[id]);
   shows.sort((a, b) => (b.lastWatchedAt || b.added) - (a.lastWatchedAt || a.added));
@@ -64,14 +65,25 @@ export default function ProfileTab() {
 
   return (
     <>
-      <div className="profile-hero" style={backdrop ? { backgroundImage: "linear-gradient(rgba(10,10,14,.55),rgba(10,10,14,.92)),url('" + backdrop + "')" } : undefined}>
+      <div className={'profile-hero' + (backdrop ? ' profile-hero--img' : '')} style={backdrop ? { backgroundImage: "linear-gradient(rgba(10,10,14,.55),rgba(10,10,14,.92)),url('" + backdrop + "')" } : undefined}>
         <button className="btn btn--ghost btn--mini profile-hero__edit" onClick={() => setEditing(!editing)} aria-expanded={editing}>{editing ? 'Done' : 'Edit'}</button>
         {avatar
           ? <img className="avatar avatar--img" src={avatar} alt="Profile" />
-          : <div className="avatar" aria-hidden="true">{(Store.get().settings.profileName || 'Y')[0].toUpperCase()}</div>}
+          : <div className="avatar" aria-hidden="true">{Array.from(Store.profileName())[0].toUpperCase()}</div>}
+        <div className="profile-hero__name">{Store.profileName()}</div>
       </div>
       {editing && (
         <div className="hero-edit">
+          {/* v2.7.2: the name was schema-resident since Phase 0 but had
+              no editor; this closes the gap alongside photo and cover. */}
+          <div className="hero-edit__namewrap">
+            <input
+              className="hero-edit__name" type="text" maxLength={30}
+              placeholder="Your name" aria-label="Profile name"
+              value={nameDraft} onChange={(e) => setNameDraft(e.target.value)}
+            />
+            <button className="btn btn--tiny" onClick={() => { Store.setProfileName(nameDraft); setNameDraft(Store.profileName()); toast('Name updated.'); }}>Save name</button>
+          </div>
           <button className="btn btn--tiny" onClick={() => pickImage('avatar')}>Change photo</button>
           {avatar && <button className="btn btn--tiny btn--ghost" onClick={() => { Store.setAvatar(null); toast('Photo removed.'); }}>Remove photo</button>}
           <button className="btn btn--tiny" onClick={() => pickImage('cover')}>Change cover</button>

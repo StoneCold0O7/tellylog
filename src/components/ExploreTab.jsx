@@ -12,7 +12,12 @@ import RailsSection from './RailsSection.jsx';
 import MicButton from './MicButton.jsx';
 
 export default function ExploreTab() {
-  const { offerGrid } = useApp();
+  const { offerGrid, exploreFocus } = useApp();
+  /* v2.7.2: "Browse all movies" arrives with exploreFocus 'movies';
+     the films rail then renders FIRST, directly under the search and
+     ask bars, instead of asking the user to scroll past trending
+     shows. Ordinary Explore visits keep the shows-first default. */
+  const filmsFirst = exploreFocus === 'movies';
   const [q, setQ] = useState('');
   const [results, setResults] = useState(null);      // null | [] | items
   const [searchErr, setSearchErr] = useState(null);
@@ -68,17 +73,24 @@ export default function ExploreTab() {
         {trendErr ? <Notice>{apiErrorText(trendErr)}</Notice> :
           trending === null ? (
             <>
-              <SectionLabel>TRENDING SHOWS</SectionLabel>
+              <SectionLabel>{filmsFirst ? 'TRENDING FILMS' : 'TRENDING SHOWS'}</SectionLabel>
               <SkeletonCards n={8} />
             </>
-          ) : (
-            <>
-              <SectionLabel>TRENDING SHOWS</SectionLabel>
-              <div className="grid">{trending.tv.map((it) => <ResultCard key={'tv-' + it.id} item={it} onAdded={offerGrid} />)}</div>
-              <SectionLabel>TRENDING FILMS</SectionLabel>
-              <div className="grid">{trending.mv.map((it) => <ResultCard key={'mv-' + it.id} item={it} onAdded={offerGrid} />)}</div>
-            </>
-          )}
+          ) : (() => {
+            const tvSection = (
+              <React.Fragment key="tv">
+                <SectionLabel>TRENDING SHOWS</SectionLabel>
+                <div className="grid">{trending.tv.map((it) => <ResultCard key={'tv-' + it.id} item={it} onAdded={offerGrid} />)}</div>
+              </React.Fragment>
+            );
+            const mvSection = (
+              <React.Fragment key="mv">
+                <SectionLabel>TRENDING FILMS</SectionLabel>
+                <div className="grid">{trending.mv.map((it) => <ResultCard key={'mv-' + it.id} item={it} onAdded={offerGrid} />)}</div>
+              </React.Fragment>
+            );
+            return filmsFirst ? [mvSection, tvSection] : [tvSection, mvSection];
+          })()}
       </div>
 
       {/* v2.6.0: personalised rails render BELOW trending as one

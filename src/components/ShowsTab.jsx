@@ -83,6 +83,7 @@ function ArchivedSection() {
 export default function ShowsTab() {
   const { openShow, go, openModal } = useApp();
   const [, setTick] = useState(0);
+  const [histView, setHistView] = useState('episodes'); // 'episodes' | 'byshow' (v2.7.2)
   const lists = Store.watchNextList();
   const hist = Store.history(20);
   const showCount = Object.keys(Store.get().shows).length;
@@ -139,13 +140,37 @@ export default function ShowsTab() {
 
       {hist.length > 0 && (
         <>
-          <SectionLabel>WATCHED HISTORY</SectionLabel>
-          {hist.map((h, i) => (
+          {/* v2.7.2: the history gains a second lens. Episodes is the
+              existing as-watched stream; By show aggregates one row per
+              series with the accent progress bar, distinct episodes
+              ticked and completion percent (rewatches never inflate
+              it). Same seg pattern as the Profile toggles. */}
+          <div className="section-row">
+            <SectionLabel>WATCHED HISTORY</SectionLabel>
+            <div className="seg seg--mini" role="group" aria-label="History view">
+              <button className={'seg__opt' + (histView === 'episodes' ? ' seg__opt--on' : '')} onClick={() => setHistView('episodes')}>Episodes</button>
+              <button className={'seg__opt' + (histView === 'byshow' ? ' seg__opt--on' : '')} onClick={() => setHistView('byshow')}>By show</button>
+            </div>
+          </div>
+          {histView === 'episodes' ? hist.map((h, i) => (
             <EpRow
               key={h.show.id + '-' + h.s + '-' + h.e + '-' + i}
               show={h.show} s={h.s} e={h.e} checked
               onToggle={() => Store.markEpisode(h.show.id, h.s, h.e, false)}
             />
+          )) : Store.showProgressList().map((p) => (
+            <article className="ep-row" key={'agg-' + p.show.id}>
+              <button className="ep-row__poster" onClick={() => openShow(p.show.id)}>
+                <Poster path={p.show.poster} alt={p.show.name} />
+              </button>
+              <div className="ep-row__body">
+                <button className="ep-row__title title-link" onClick={() => openShow(p.show.id)}>
+                  {p.show.name}<span className="title-link__chev" aria-hidden="true">›</span>
+                </button>
+                <div className="progress progress--row"><div className="progress__bar" style={{ width: p.pct + '%' }}></div></div>
+                <div className="ep-row__meta">{p.seen} of {p.total || '?'} episodes · {p.pct}% complete{p.show.archived ? ' · archived' : ''}</div>
+              </div>
+            </article>
           ))}
         </>
       )}

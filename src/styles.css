@@ -924,6 +924,26 @@ a.provider--link:hover .provider__kind { color: var(--ink); }
 .profile-hero__edit { position: absolute; top: 10px; right: 10px; }
 .avatar--img { object-fit: cover; padding: 0; }
 .hero-edit { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 2px; }
+/* v2.7.2: profile name in the hero + its editor row */
+.profile-hero__name {
+  margin-left: 12px;
+  font-family: var(--font-display); font-weight: 800; font-size: 20px;
+  color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Over an image the gradient guarantees a dark backdrop, so white is
+   safe; on the plain surface (no cover, empty library) ink keeps the
+   name legible in light mode. Same lesson as the v2.6.0 stats header. */
+.profile-hero--img .profile-hero__name { color: #fff; text-shadow: 0 1px 6px rgba(0,0,0,.6); }
+.hero-edit__namewrap { display: flex; gap: 8px; width: 100%; }
+.hero-edit__name {
+  flex: 1; min-width: 0;
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 8px;
+  padding: 6px 10px; font-size: 14px;
+}
+/* v2.7.2: progress bar inside a history aggregate row */
+.progress--row { border-radius: 3px; overflow: hidden; margin-top: 6px; max-width: 340px; }
 
 /* ---------- v2.6.0: stats hero, rewatch, ratings, rails, stats ask ---------- */
 
