@@ -9,12 +9,19 @@ import InsightsSection from './InsightsSection.jsx';
 import StatsAsk from './StatsAsk.jsx';
 
 export default function ProfileTab() {
-  const { openShow, openModal, toast, go, setMoviesSub } = useApp();
+  const { openShow, openPreview, openModal, toast, go, setMoviesSub } = useApp();
   const [showView, setShowView] = useState('posters'); // 'posters' | 'list'
+  const [libKind, setLibKind] = useState('shows');     // 'shows' | 'films' (v2.7.1)
   const [editing, setEditing] = useState(false);
   const st = Store.stats();
   const shows = Object.keys(Store.get().shows).map((id) => Store.get().shows[id]);
   shows.sort((a, b) => (b.lastWatchedAt || b.added) - (a.lastWatchedAt || a.added));
+  /* v2.7.1: watched films get the same browser the shows have, behind
+     a Shows | Films segment (owner ruling: two alternating buttons,
+     the same pattern as Posters | List, rather than stacked lists). */
+  const films = Object.keys(Store.get().movies).map((id) => Store.get().movies[id])
+    .filter((mv) => !!mv.watchedAt)
+    .sort((a, b) => (b.watchedAt || 0) - (a.watchedAt || 0));
   const cover = Store.cover();
   const avatar = Store.avatar();
   const backdrop = cover || (shows.length && shows[0].backdrop ? TMDB.img(shows[0].backdrop, 'w780') : '');
@@ -111,41 +118,77 @@ export default function ProfileTab() {
       <StatsAsk />
 
       <div className="section-row">
-        <SectionLabel>{'SHOWS (' + shows.length + ')'}</SectionLabel>
-        {shows.length > 0 && (
-          <div className="seg seg--mini" role="group" aria-label="Shows view">
-            <button className={'seg__opt' + (showView === 'posters' ? ' seg__opt--on' : '')} onClick={() => setShowView('posters')}>Posters</button>
-            <button className={'seg__opt' + (showView === 'list' ? ' seg__opt--on' : '')} onClick={() => setShowView('list')}>List</button>
+        <SectionLabel>{libKind === 'shows' ? 'SHOWS (' + shows.length + ')' : 'FILMS (' + films.length + ')'}</SectionLabel>
+        <div className="seg-pair">
+          <div className="seg seg--mini" role="group" aria-label="Library kind">
+            <button className={'seg__opt' + (libKind === 'shows' ? ' seg__opt--on' : '')} onClick={() => setLibKind('shows')}>Shows</button>
+            <button className={'seg__opt' + (libKind === 'films' ? ' seg__opt--on' : '')} onClick={() => setLibKind('films')}>Films</button>
           </div>
-        )}
+          {(libKind === 'shows' ? shows.length : films.length) > 0 && (
+            <div className="seg seg--mini" role="group" aria-label="Library view">
+              <button className={'seg__opt' + (showView === 'posters' ? ' seg__opt--on' : '')} onClick={() => setShowView('posters')}>Posters</button>
+              <button className={'seg__opt' + (showView === 'list' ? ' seg__opt--on' : '')} onClick={() => setShowView('list')}>List</button>
+            </div>
+          )}
+        </div>
       </div>
-      {shows.length === 0 ? <Notice>No shows tracked yet.</Notice> : showView === 'posters' ? (
-        <div className="poster-strip">
-          {shows.map((sh) => (
-            <button className="poster-strip__item" key={sh.id} onClick={() => openShow(sh.id)}>
-              <Poster path={sh.poster} alt={sh.name} size="w342" />
-            </button>
-          ))}
-        </div>
-      ) : (
-        <div className="show-list">
-          {shows.map((sh) => (
-            <article className="ep-row" key={sh.id}>
-              <button className="ep-row__poster" onClick={() => openShow(sh.id)}>
-                <Poster path={sh.poster} alt={sh.name} />
+      {libKind === 'shows' ? (
+        shows.length === 0 ? <Notice>No shows tracked yet.</Notice> : showView === 'posters' ? (
+          <div className="poster-strip">
+            {shows.map((sh) => (
+              <button className="poster-strip__item" key={sh.id} onClick={() => openShow(sh.id)}>
+                <Poster path={sh.poster} alt={sh.name} size="w342" />
               </button>
-              <div className="ep-row__body">
-                <button className="ep-row__title title-link" onClick={() => openShow(sh.id)}>
-                  {sh.name}<span className="title-link__chev" aria-hidden="true">›</span>
+            ))}
+          </div>
+        ) : (
+          <div className="show-list">
+            {shows.map((sh) => (
+              <article className="ep-row" key={sh.id}>
+                <button className="ep-row__poster" onClick={() => openShow(sh.id)}>
+                  <Poster path={sh.poster} alt={sh.name} />
                 </button>
-                <div className="ep-row__meta">
-                  {Store.watchedCount(sh)} of {Store.totalEpisodes(sh)} episodes
-                  {sh.archived ? <span className="chip chip--arch">ARCHIVED</span> : null}
+                <div className="ep-row__body">
+                  <button className="ep-row__title title-link" onClick={() => openShow(sh.id)}>
+                    {sh.name}<span className="title-link__chev" aria-hidden="true">›</span>
+                  </button>
+                  <div className="ep-row__meta">
+                    {Store.watchedCount(sh)} of {Store.totalEpisodes(sh)} episodes
+                    {sh.archived ? <span className="chip chip--arch">ARCHIVED</span> : null}
+                  </div>
                 </div>
-              </div>
-            </article>
-          ))}
-        </div>
+              </article>
+            ))}
+          </div>
+        )
+      ) : (
+        films.length === 0 ? <Notice>No films watched yet.</Notice> : showView === 'posters' ? (
+          <div className="poster-strip">
+            {films.map((mv) => (
+              <button className="poster-strip__item" key={mv.id} onClick={() => openPreview('movie', mv.id)}>
+                <Poster path={mv.poster} alt={mv.title} size="w342" />
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="show-list">
+            {films.map((mv) => (
+              <article className="ep-row" key={mv.id}>
+                <button className="ep-row__poster" onClick={() => openPreview('movie', mv.id)}>
+                  <Poster path={mv.poster} alt={mv.title} />
+                </button>
+                <div className="ep-row__body">
+                  <button className="ep-row__title title-link" onClick={() => openPreview('movie', mv.id)}>
+                    {mv.title}<span className="title-link__chev" aria-hidden="true">›</span>
+                  </button>
+                  <div className="ep-row__meta">
+                    {(mv.releaseDate || '').slice(0, 4)}{mv.runtime ? ' · ' + U.fmtRuntime(mv.runtime) : ''}{mv.rating ? ' · ' + mv.rating + '/5' : ''}
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )
       )}
 
       <SectionLabel>ADD MORE</SectionLabel>

@@ -265,11 +265,18 @@ t('librarySummary: marks archived shows as dropped and respects the cap', () => 
   for (let i = 1; i <= 35; i++) {
     Store.addShow({ id: 100 + i, name: 'Show' + i, seasons: [{ season_number: 1, episode_count: 2 }] });
   }
+  /* v2.7.1 flake fix, on the record: the 35 adds mostly tie on the
+     same Date.now() millisecond, so Show1's place inside the 30-line
+     cap depended on where the ms boundary landed. Marking an episode
+     AFTER all adds gives Show1 the newest timestamp, so it sorts
+     first deterministically. The store was never wrong; the test was
+     timing-dependent. */
+  Store.markEpisode(101, 1, 1, true);
   Store.setArchived(101, true);
   const sum = Store.librarySummary(30);
   const lines = sum.split('\n').filter((l) => l.indexOf('- ') === 0);
   assert.strictEqual(lines.length, 30);
-  assert.ok(sum.indexOf('Show1, 0/2 eps, dropped') !== -1);
+  assert.ok(sum.indexOf('Show1, 1/2 eps, dropped') !== -1);
 });
 
 t('librarySummary: empty store gives empty string', () => {

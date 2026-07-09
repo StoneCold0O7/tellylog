@@ -1,38 +1,45 @@
-# TellyLog handover: after v2.7.0. The build is DONE. One deliverable remains: the LinkedIn post.
+# TellyLog handover: after v2.7.1. All technical work is DONE pending one short checklist. Next session: the LinkedIn post.
 
-Date: 8 July 2026. Supersedes every earlier handover. Pair with the updated CONTEXT.md and the v2.7.0 zip. There are no build sessions left.
+Date: 9 July 2026. Supersedes every earlier handover. Pair with the updated CONTEXT.md and the v2.7.1 zip.
 
 ## 1. What to do now, in order
 
-1. Upload the v2.7.0 zip contents to the repo root on GitHub. Deleted files: NONE.
-2. Watch the Vercel deployment. IMPORTANT, on the record: this session's build container had no npm registry access, so the vitest component suite and the production build did NOT run in-session (105 node tests did, all green). Vercel's build is therefore the first full build of v2.7.0. If Vercel shows a failed deployment, STOP, copy the build log and open a fix session with it. A green Vercel build plus the checklist is the verification path.
-3. Run CHECKLIST-V2_7_0.md on the deployed site. Sections A and B prove the two big changes (genre rails, the cost gate). Note that both AI caches will regenerate ONCE on first visit because their shape changed; that single regeneration is expected, not a gate failure.
-4. Read the new README.md top to bottom as a stranger would. It was written, per your instruction, as if everything verified; if any checklist step fails, the README gets corrected BEFORE the LinkedIn post goes out.
+1. Upload the v2.7.1 zip contents to the repo root on GitHub. Deleted files: NONE.
+2. Confirm the Vercel build goes green (the vitest suite still rides on it; a failed build is a stop signal, paste the log into a fix session).
+3. Run CHECKLIST-V2_7_1.md. It is short: the UNDEFINED fix, the watchlist button, the profile film browser, two regression taps.
+4. If everything passes, the README is final and the LinkedIn session opens clean. If anything fails, the LinkedIn session fixes it FIRST; nothing gets posted over a known bug.
 
-## 2. The caveat you asked to carry forward
+## 2. The caveat carried forward
 
-The last piece of this project is a humanly, upbeat LinkedIn post. Do not let a model's default voice write it flat or breathless; it must sound like you. The draft brief is below. The post goes out only after the checklist passes and the README reflects reality.
+The final deliverable is a humanly, upbeat LinkedIn post in the OWNER'S voice: professional, warm, human, no emoji walls, no sticker energy, nothing that smells AI-generated or childish. It should show the human side and the AI-strategist side at once. The owner has delivered the full story in his own words; section 3 is that story, structured. The post gets drafted from section 3, not invented.
 
-**When to post, for reach.** LinkedIn engagement concentrates in the working week, on Tuesday, Wednesday or Thursday, in the 8:00-10:00am window in your audience's timezone (UK time for a UK job search), when people check feeds at the start of the workday; a secondary window sits around midday. Weekends, Friday afternoons and late evenings underperform. [Likely] These are aggregate patterns from social-scheduling studies, not a guarantee for any single post; your own network's habits can differ. Recommendation: Tuesday or Wednesday, 8:30-9:30am UK time, then spend the following hour replying to every comment, because early replies feed the algorithm's distribution. [Likely]
+**Posting time.** Tuesday, Wednesday or Thursday, 8:00-10:00am UK time is the strongest window for a UK-market audience, with midday as the fallback; avoid Friday afternoons and weekends. Recommended: Tuesday or Wednesday, 8:30-9:30am UK, then spend the next hour replying to every comment because early replies drive distribution. [Likely] Aggregate patterns from scheduling studies, not a per-post guarantee.
 
-## 3. LinkedIn post draft brief
+**Timeliness bonus, verified in-session on 9 July 2026:** the TV Time shutdown (service ends after 15 July 2026, GDPR export until then, announced 1-2 July) is current news covered by TechCrunch, MacRumors and others. Posting BEFORE 15 July rides the news cycle; the shutdown date passing makes the story retrospective. That argues for posting within the coming week, checklist permitting. [Certain] on the shutdown facts, [Likely] on the news-cycle benefit.
 
-- Voice: first person, warm, plainly proud, zero corporate filler. Upbeat but honest.
-- The hook: a non-developer shipped a deployed, tested, installable product by directing an AI; the actual portfolio piece is the decision record: what was refused, what was reversed, what the AI was never allowed to do.
-- Three concrete beats to pick from: the grounding principle (no AI feature until real data existed), the deterministic-versus-LLM split (stats questions answered with zero model calls because arithmetic does not hallucinate), the cost gate (AI refreshes only after 5 days plus 6 units of real taste change, thresholds public in the README).
-- One reversal told as a story (the episode-ratings rejection or the Kino rename discovery) lands better than a feature list.
-- Close with the links: the live app, the repo, the colophon. Invite people to read the session logs, because the pushback in both directions is the point.
-- Length: short enough to read without "see more" fatigue, roughly 150-220 words, line breaks between beats, no hashtag walls (3-4 targeted ones at most).
-- Attach 2-3 screenshots: the genre rails over your real library, the stats modal, the colophon page.
+## 3. The owner's story, in his own words (the voice source for the post)
+
+- Using TV Time since 2016: tracking shows, next episodes, next seasons. The community side was the soul of it: episode comments, spoilers, character favourability votes, where-to-watch, crowd reactions, ratings, the funny posts after each episode.
+- The undergrad ritual: comparing with uni friends who had watched more minutes, more episodes, more series, more films. Young-people-being-chill energy; keep it.
+- Last week: the in-app notification that TV Time closes permanently on 15 July, data downloadable on request. It genuinely made him sad, melancholic. That word choice is his; keep the sentiment honest, not performative.
+- He talked to those same uni friends. ONE FRIEND suggested: why not build your own AI app on local storage? The owner wants that friend credited in the post.
+- The fate part: he noticed the newest Claude model was included in his plan, thought "let's put my boards up" and see what he could make.
+- The bridge from work: he had been working with an AI chatbot project professionally and wanted AI in his personal life too.
+- What he actually did: brainstormed, set guardrails, strategized the why (foster that community again, ship an MVP his friends could use). Five planned phases that became, in his words, a one-man scrum ceremony with Claude: refinement sessions, retrospectives, things pushed to later waves, A/B checks, weeding out bugs, iterating until viable.
+- The honest budget angle: he set a monetary ceiling and guardrails on how many LLM calls the product may make, so it stays budget-friendly; all documented in the README. Trade-offs written down deliberately: he chose not to scale now but knows exactly how he would.
+- The ask: live app plus GitHub repo linked; he would love his LinkedIn community to try it and comment with their experience.
+- Sign-off sentiment: this was fun and personal; "I hope you enjoy using it as much as I enjoyed making it."
+
+Drafting notes: 150-220 words, line breaks between beats, 3-4 targeted hashtags at most, 2-3 screenshots (genre rails on his real library, stats modal, colophon). Do not fabricate details beyond this list. Do not claim his TV Time data was imported (it was not; the history was logged manually). The strongest available hook, flag it to him: TV Time's parent shut the community app to chase enterprise AI; one user's answer was to direct an AI to build the tracker back for himself.
 
 ## 4. Paste this prompt into the next new chat
 
 ```
-TellyLog: the LinkedIn post session, the final deliverable. Attach CONTEXT.md and this HANDOVER-NEXT.md. State of play: v2.7.0 deployed at tellylog-3d2u.vercel.app, Vercel build [GREEN/FAILED], CHECKLIST-V2_7_0.md result: [ALL PASSED / list failures]. README read-through: [ACCURATE / needs these corrections].
+TellyLog: the LinkedIn post session, the final deliverable. Attach CONTEXT.md and this HANDOVER-NEXT.md. State of play: v2.7.1 deployed at tellylog-3d2u.vercel.app, Vercel build [GREEN/FAILED], CHECKLIST-V2_7_1.md result: [ALL PASSED / list failures].
 
-This session's job: write the LinkedIn post per the draft brief in HANDOVER-NEXT.md section 3, in MY voice, humanly and upbeat. Give me 2-3 variants with different hooks, tell me which one you would post and why, then we refine one together. Confirm the posting-time recommendation against my stated audience. Audit the brief first: if the checklist failed anywhere, we fix the README claims before any post is drafted. Remind me to close around 15 messages.
+This session's job: draft the LinkedIn post from HANDOVER-NEXT.md section 3, in MY voice per the caveat in section 2. Give me 2-3 variants with different hooks, tell me which you would post and why, then we refine one. Confirm the posting-time recommendation and the before-15-July timing point. Audit first: if the checklist failed anywhere, we fix that before any drafting. Remind me to close around 15 messages.
 ```
 
-## 5. Standing facts for the next session
+## 5. Standing facts
 
-Storage key tellylog:v1, rails cache tellylog:rails:v1 (regenerates once on v2.7.0 first load), taste cache tellylog:taste:v1 (same), version 2.7.0, refresh gate 5 days + 6 units in src/lib/refreshGate.js, colophon at #/colophon, PWA installable with a minimal offline shell. Owner-side recurring item: Anthropic credit. Nothing else is owner-blocked.
+Version 2.7.1. Storage key tellylog:v1. Rails cache tellylog:rails:v1, now shape-versioned (v:2), regenerates once on first v2.7.1 visit BY DESIGN. Taste cache tellylog:taste:v1, unchanged shape. Refresh gate: 5 days + 6 units, src/lib/refreshGate.js. Watchlist: button at the top of Shows, modal. Profile library: Shows | Films and Posters | List segments. Colophon at #/colophon. PWA installable. Owner-side recurring item: Anthropic credit.

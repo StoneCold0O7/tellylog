@@ -18,6 +18,7 @@ import OnboardingGrid from './OnboardingGrid.jsx';
 import StatsModal from './StatsModal.jsx';
 import DataModal from './DataModal.jsx';
 import ColophonPage from './ColophonPage.jsx';
+import WatchlistModal from './WatchlistModal.jsx';
 import { IconTv, IconCalendar, IconFilm, IconSearch, IconUser } from './Icons.jsx';
 
 const TABS = ['shows', 'upcoming', 'movies', 'explore', 'profile', 'colophon'];
@@ -175,6 +176,7 @@ export default function App() {
             {modal.type === 'grid' && <OnboardingGrid />}
             {modal.type === 'stats' && <StatsModal />}
             {modal.type === 'data' && <DataModal />}
+            {modal.type === 'watchlist' && <WatchlistModal />}
           </div>
         </div>
       )}

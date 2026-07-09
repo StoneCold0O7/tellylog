@@ -50,40 +50,6 @@ function StaleCard({ entry }) {
   );
 }
 
-/* v2.5.0: saved-for-later shows, the TV twin of the film watchlist.
-   Collapsible like ARCHIVED. Start moves the show into the queue and
-   opens the tracker; watching any episode does the same implicitly. */
-function WatchlistSection() {
-  const { openShow, toast } = useApp();
-  const [open, setOpen] = useState(true);
-  const list = Store.watchlistShows();
-  if (list.length === 0) return null;
-  return (
-    <div className="arch">
-      <button className="arch__toggle" onClick={() => setOpen(!open)} aria-expanded={open}>
-        WATCHLIST ({list.length}) <span className={'arch__chev' + (open ? ' arch__chev--open' : '')}>▾</span>
-      </button>
-      {open && list.map((sh) => (
-        <article className="ep-row" key={sh.id}>
-          <button className="ep-row__poster" onClick={() => openShow(sh.id)}>
-            <Poster path={sh.poster} alt={sh.name} />
-          </button>
-          <div className="ep-row__body">
-            <button className="ep-row__title title-link" onClick={() => openShow(sh.id)}>
-              {sh.name}<span className="title-link__chev" aria-hidden="true">›</span>
-            </button>
-            <div className="ep-row__meta">Saved to watch later</div>
-          </div>
-          <div className="ep-row__actions">
-            <button className="btn btn--tiny btn--primary" onClick={() => { Store.setShowWatchlist(sh.id, false); openShow(sh.id); toast('In your queue. Enjoy.'); }}>Start</button>
-            <button className="icon-btn" onClick={() => { Store.removeShow(sh.id); toast('Removed.'); }} aria-label="Remove show">✕</button>
-          </div>
-        </article>
-      ))}
-    </div>
-  );
-}
-
 function ArchivedSection() {
   const { openShow, toast } = useApp();
   const [open, setOpen] = useState(false);
@@ -115,7 +81,7 @@ function ArchivedSection() {
 }
 
 export default function ShowsTab() {
-  const { openShow, go } = useApp();
+  const { openShow, go, openModal } = useApp();
   const [, setTick] = useState(0);
   const lists = Store.watchNextList();
   const hist = Store.history(20);
@@ -123,12 +89,22 @@ export default function ShowsTab() {
 
   if (showCount === 0 && hist.length === 0) return <FirstRun />;
 
+  /* v2.7.1: the watchlist moved from the bottom of this tab (where a
+     long watch history buried it beyond reach) to a button at the top
+     opening a modal, on the owner's ruling. Always visible once the
+     tab has content, so a new user learns the feature exists. */
+  const wl = Store.watchlistShows();
+
   const tonight = lists.next.length > 0 ? lists.next[0] : null;
   const queue = lists.next.slice(1);
   const nudge = !nudgeDismissed ? Store.nudgePick(tonight ? tonight.show.id : null) : null;
 
   return (
     <>
+      <div className="shows-topbar">
+        <button className="btn btn--tiny" onClick={() => openModal({ type: 'watchlist' })}>🔖 Watchlist ({wl.length})</button>
+      </div>
+
       {nudge && (
         <div className="nudge">
           <button className="nudge__text" onClick={() => openShow(nudge.show.id)}>
@@ -174,7 +150,6 @@ export default function ShowsTab() {
         </>
       )}
 
-      <WatchlistSection />
       <ArchivedSection />
     </>
   );

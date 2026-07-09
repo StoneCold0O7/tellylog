@@ -23,6 +23,22 @@
 export const REFRESH_MIN_DAYS = 5;
 export const REFRESH_MIN_UNITS = 6;
 
+/* v2.7.1: the rails cache carries a shape version. The v2.6.0 to
+   v2.7.0 migration bug (rails headed "BECAUSE YOU WATCH UNDEFINED" on
+   the live site): the old title-anchored cache was newer than 5 days,
+   so the gate correctly served it stale, but its entries had no
+   `genre` field. Serving a stale cache is only safe when the cache is
+   the shape the UI expects, so shape validity is now checked BEFORE
+   the gate ever sees the cache. Any cache failing validation is
+   treated as absent, which means regenerate. */
+export const RAILS_CACHE_V = 2;
+
+export function validRailsCache(c) {
+  return !!(c && c.v === RAILS_CACHE_V && c.h && c.ts &&
+    Array.isArray(c.rails) && c.rails.length &&
+    c.rails.every(function (r) { return r && typeof r.genre === 'string' && r.genre && Array.isArray(r.cards); }));
+}
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /* Decide what to do with a cached AI result.

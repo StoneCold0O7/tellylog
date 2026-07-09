@@ -18,7 +18,7 @@ import React, { useEffect, useState } from 'react';
 import * as Store from '../lib/store.js';
 import * as TMDB from '../lib/tmdb.js';
 import * as AI from '../lib/ai.js';
-import { refreshDecision, policyLine } from '../lib/refreshGate.js';
+import { refreshDecision, policyLine, validRailsCache, RAILS_CACHE_V } from '../lib/refreshGate.js';
 import { SectionLabel, Notice, SkeletonCards } from './shared.jsx';
 import ResultCard from './ResultCard.jsx';
 
@@ -61,7 +61,11 @@ export default function RailsSection({ onAdded }) {
 
     let cached = null;
     try { cached = JSON.parse(localStorage.getItem(RAILS_KEY) || 'null'); } catch (e) { cached = null; }
-    const usable = cached && Array.isArray(cached.rails) && cached.rails.length ? cached : null;
+    /* v2.7.1: shape check BEFORE the gate. A pre-2.7.0 cache is the
+       wrong shape (no genre field); serving it stale rendered
+       "BECAUSE YOU WATCH UNDEFINED" on the live site. Wrong shape is
+       treated as no cache at all, so it regenerates immediately. */
+    const usable = validRailsCache(cached) ? cached : null;
     const decision = refreshDecision(usable, h, units);
     if (decision !== 'generate' && usable) {
       setRails(usable.rails);
@@ -97,7 +101,7 @@ export default function RailsSection({ onAdded }) {
       /* Cache only a non-empty result so a one-off bad answer is
          retried instead of pinned until the gate next opens. */
       if (out.resolved.length) {
-        try { localStorage.setItem(RAILS_KEY, JSON.stringify({ h: h, u: units, rails: out.resolved, note: out.note, ts: Date.now() })); } catch (e) { /* cache only */ }
+        try { localStorage.setItem(RAILS_KEY, JSON.stringify({ v: RAILS_CACHE_V, h: h, u: units, rails: out.resolved, note: out.note, ts: Date.now() })); } catch (e) { /* cache only */ }
       }
     }).catch((e) => {
       if (!alive) return;
