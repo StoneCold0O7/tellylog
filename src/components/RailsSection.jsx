@@ -13,7 +13,17 @@
    v2.7.0 also adds the refresh gate (refreshGate.js): a changed
    library no longer regenerates on sight. The cached rails are served
    stale until 5+ days AND 6+ signal units have passed, so API spend
-   tracks real taste change. First generation is immediate. */
+   tracks real taste change. First generation is immediate.
+
+   v2.7.4: the import-scale starvation fix. At 2k+ owned titles the
+   model's obvious picks are mostly owned, the v2.7.3 filter correctly
+   eats them and rails render one card. Three-part fix, cost measured
+   in fractions of a penny: (1) the model over-generates 10-12 picks
+   per rail and the UI shows the first DISPLAY_CAP survivors, (2) each
+   anchor carries the owned titles in its genre so picks stop landing
+   on owned territory in the first place, (3) rails still short after
+   filtering are topped up deterministically from TMDB discover at
+   zero LLM cost, honestly captioned as such. */
 import React, { useEffect, useState } from 'react';
 import * as Store from '../lib/store.js';
 import * as TMDB from '../lib/tmdb.js';
@@ -41,15 +51,54 @@ function basisLine(anchor) {
 /* v2.7.3: recommendations must never include titles already in the
    library, in any state (tracking, watchlisted, archived). The model
    is told this but cannot enforce it past the librarySummary cap;
-   this deterministic filter can. Rails emptied by it are dropped. */
-function stripOwned(rails) {
-  return (rails || []).map(function (r) {
+   this deterministic filter can. Rails emptied by it are dropped,
+   except during generation (keepEmpty), where the backfill below gets
+   a chance to rescue them first. */
+function stripOwned(rails, keepEmpty) {
+  var out = (rails || []).map(function (r) {
     return Object.assign({}, r, {
       cards: (r.cards || []).filter(function (c) {
         return c && c.item && !Store.ownsTitle(c.item.media_type, c.item.id);
       })
     });
-  }).filter(function (r) { return r.cards.length > 0; });
+  });
+  return keepEmpty ? out : out.filter(function (r) { return r.cards.length > 0; });
+}
+
+/* v2.7.4: the rail shows this many cards. The cache may hold up to 12
+   filter-survivors per rail; the surplus is a reserve so serve-time
+   filtering after a future import degrades gracefully instead of
+   thinning the rail to one card again. */
+var DISPLAY_CAP = 5;
+var MIN_RAIL = 4;
+
+/* v2.7.4: deterministic TMDB backfill. If the LLM's picks for a rail
+   filter down below MIN_RAIL (heavy libraries own the obvious picks),
+   top up from TMDB discover by genre: popularity-ranked, owned and
+   duplicate titles excluded, zero LLM cost. Backfilled cards carry
+   fill:true and the rail carries filled:true so the basis caption can
+   say so; silently mixing popularity picks into taste-grounded rails
+   would break the honesty rule the rails are built on. Any failure
+   returns the rail unchanged. */
+function backfillRail(rail, anchor) {
+  if (!anchor || rail.cards.length >= MIN_RAIL) return Promise.resolve(rail);
+  var isMovie = anchor.kind === 'movie';
+  var gid = isMovie ? TMDB.movieGenreId(anchor.genre) : TMDB.tvGenreId(anchor.genre);
+  if (!gid) return Promise.resolve(rail);
+  var call = isMovie ? TMDB.discoverMovie(gid) : TMDB.discoverTV(gid);
+  return call.then(function (out) {
+    var mt = isMovie ? 'movie' : 'tv';
+    var have = {};
+    rail.cards.forEach(function (c) { have[c.item.media_type + '-' + c.item.id] = true; });
+    var extra = (out.results || []).filter(function (it) {
+      return it && it.id && !have[mt + '-' + it.id] && !Store.ownsTitle(mt, it.id);
+    }).slice(0, DISPLAY_CAP - rail.cards.length).map(function (it) {
+      it.media_type = mt;
+      return { item: it, reason: '', fill: true };
+    });
+    if (extra.length) return Object.assign({}, rail, { cards: rail.cards.concat(extra), filled: true });
+    return rail;
+  }).catch(function () { return rail; });
 }
 
 export default function RailsSection({ onAdded }) {
@@ -67,7 +116,14 @@ export default function RailsSection({ onAdded }) {
 
   useEffect(() => {
     if (!llm) return;
-    const anchors = Store.genreRailAnchors();
+    /* v2.7.4: each anchor carries the owned titles in its genre so
+       the model stops wasting picks on famous titles a heavy library
+       already owns. Deliberately NOT part of the cache hash: the
+       exclusion list only moves when the library moves, which the
+       gate already governs. */
+    const anchors = Store.genreRailAnchors().map((a) => Object.assign({}, a, {
+      exclude: Store.ownedTitlesInGenre(a.genre, a.kind, 80)
+    }));
     if (anchors.length === 0) return; // no genre has 2+ watched titles yet: no rails, no fake ones either
     const lib = Store.librarySummary();
     const h = hash(lib + '|' + anchors.map((a) => a.kind + ':' + a.genre).join('|'));
@@ -110,7 +166,19 @@ export default function RailsSection({ onAdded }) {
           basis: anchors[i] ? basisLine(anchors[i]) : '',
           cards: cards.filter(Boolean)
         }));
-      })).then((resolved) => ({ resolved: stripOwned(resolved), note: res.note }));
+      })).then((resolved) => {
+        /* v2.7.4: strip owned but keep emptied rails alive long
+           enough for the deterministic backfill to rescue them, then
+           drop whatever is still empty. */
+        const stripped = stripOwned(resolved, true);
+        return Promise.all(stripped.map((r) => {
+          const anchor = anchors.find((a) => a.genre === r.genre) || null;
+          return backfillRail(r, anchor);
+        })).then((filled) => ({
+          resolved: filled.filter((r) => r.cards.length > 0),
+          note: res.note
+        }));
+      });
     }).then((out) => {
       if (!alive) return;
       setRails(out.resolved);
@@ -145,9 +213,14 @@ export default function RailsSection({ onAdded }) {
       {(rails || []).map((r) => (
         <div className="rail" key={'genre-' + r.genre}>
           <SectionLabel>{'BECAUSE YOU WATCH ' + String(r.genre).toUpperCase()}</SectionLabel>
-          {r.basis ? <div className="rail__basis">{r.basis}</div> : null}
+          {r.basis || r.filled ? (
+            <div className="rail__basis">
+              {r.basis}
+              {r.filled ? (r.basis ? ' ' : '') + 'Topped up with popular ' + r.genre + ' picks from TMDB.' : ''}
+            </div>
+          ) : null}
           <div className="grid">
-            {r.cards.map((c) => <ResultCard key={c.item.media_type + '-' + c.item.id} item={c.item} onAdded={onAdded} />)}
+            {r.cards.slice(0, DISPLAY_CAP).map((c) => <ResultCard key={c.item.media_type + '-' + c.item.id} item={c.item} onAdded={onAdded} />)}
           </div>
         </div>
       ))}

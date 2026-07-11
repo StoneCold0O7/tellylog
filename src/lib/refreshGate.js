@@ -30,8 +30,16 @@ export const REFRESH_MIN_UNITS = 6;
    `genre` field. Serving a stale cache is only safe when the cache is
    the shape the UI expects, so shape validity is now checked BEFORE
    the gate ever sees the cache. Any cache failing validation is
-   treated as absent, which means regenerate. */
-export const RAILS_CACHE_V = 2;
+   treated as absent, which means regenerate.
+
+   v2.7.4 bumps to 3: rails now cache up to 12 filter-survivors per
+   rail (the render shows the first 5, the rest are a reserve against
+   future serve-time filtering) plus optional fill-flagged TMDB
+   backfill cards and a per-rail `filled` marker for the honesty
+   caption. The bump also forces the thin post-import v2.7.3 cache to
+   regenerate immediately instead of serving one-pick rails until the
+   gate next opens. */
+export const RAILS_CACHE_V = 3;
 
 export function validRailsCache(c) {
   return !!(c && c.v === RAILS_CACHE_V && c.h && c.ts &&
