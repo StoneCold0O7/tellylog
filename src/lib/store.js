@@ -472,6 +472,18 @@ export function watchedMapFor(showId) {
   return map;
 }
 
+/* v2.7.3: deterministic owned-title check for AI surfaces. The prompt
+   already tells the model never to pick library titles, but
+   librarySummary is capped at 30 shows / 20 films for token cost, so
+   past ~50 titles the model literally cannot know what is owned. At
+   import scale (the owner's TV Time import: 2k+ titles) the prompt
+   rule is structurally unenforceable; this check is the guarantee.
+   Tracking, watchlisted, archived: owned is owned. */
+export function ownsTitle(mediaType, tmdbId) {
+  if (mediaType === 'movie') return !!state.movies[tmdbId];
+  return !!state.shows[tmdbId];
+}
+
 /* Compact plain-text library summary for the Phase 2 ask box. Sent to
    the serverless endpoint as LLM context. Pure read, no persistence. */
 export function librarySummary(maxShows, maxMovies) {

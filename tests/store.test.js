@@ -730,4 +730,19 @@ t('restore of a backup without a profile name still yields the You fallback', ()
   assert.strictEqual(Store.profileName(), 'You');
 });
 
+t('ownsTitle: true for tracked, watchlisted and archived titles in both media, false otherwise', () => {
+  Store.clearAll();
+  Store.addShow(fakeDetails(84, 'Tracked', { 1: 5 }, 30));
+  Store.addShowToWatchlist(fakeDetails(85, 'Saved', { 1: 5 }, 30));
+  Store.addShow(fakeDetails(86, 'Dropped', { 1: 5 }, 30));
+  Store.setArchived(86, true);
+  Store.addMovie({ id: 87, title: 'OwnedFilm', runtime: 100, genres: [], release_date: '2020-01-01' });
+  assert.strictEqual(Store.ownsTitle('tv', 84), true);
+  assert.strictEqual(Store.ownsTitle('tv', 85), true);   // watchlist counts as owned
+  assert.strictEqual(Store.ownsTitle('tv', 86), true);   // archived counts as owned
+  assert.strictEqual(Store.ownsTitle('movie', 87), true);
+  assert.strictEqual(Store.ownsTitle('tv', 999), false);
+  assert.strictEqual(Store.ownsTitle('movie', 84), false); // a show id is not a film id
+});
+
 console.log('\nAll ' + passed + ' tests passed.');

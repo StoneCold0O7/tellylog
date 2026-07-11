@@ -68,13 +68,15 @@ export default function App() {
   const closeModal = useCallback(() => setModal(null), []);
 
   /* Open a show modal; untracked shows are fetched and tracked first,
-     matching the original openShow behaviour. */
-  const openShow = useCallback((id) => {
+     matching the original openShow behaviour. v2.7.3: an optional
+     focus {s, e} opens that season and scrolls to that episode, so a
+     history row lands on the episode it names, not the modal top. */
+  const openShow = useCallback((id, focus) => {
     const sh = Store.get().shows[id];
-    if (sh) { setModal({ type: 'show', id }); return; }
+    if (sh) { setModal({ type: 'show', id, focus: focus || null }); return; }
     TMDB.tvDetails(id).then((d) => {
       Store.addShow(d);
-      setModal({ type: 'show', id });
+      setModal({ type: 'show', id, focus: focus || null });
       toast('Now tracking ' + d.name);
     }).catch(() => toast('Could not load that show.'));
   }, [toast]);
@@ -177,7 +179,7 @@ export default function App() {
       {modal && (
         <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}>
           <div className={'modal ' + (modal.type === 'show' || modal.type === 'preview' ? 'modal--show' : modal.type === 'grid' ? 'modal--grid' : modal.type === 'stats' ? 'modal--show' : 'modal--import')} role="dialog" aria-modal="true">
-            {modal.type === 'show' && <ShowModal id={modal.id} />}
+            {modal.type === 'show' && <ShowModal id={modal.id} focus={modal.focus} />}
             {modal.type === 'preview' && <TitleModal media={modal.media} id={modal.id} />}
             {modal.type === 'settings' && <SettingsModal />}
             {modal.type === 'import' && <ImportWizard />}

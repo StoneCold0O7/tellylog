@@ -124,11 +124,11 @@ export function EpRow({ show, s, e, remaining, epName, badge, checked, onToggle 
     ? <span className="rem">+{remaining - 1}</span> : null;
   return (
     <article className={'ep-row' + (checked ? ' ep-row--watched' : '')}>
-      <button className="ep-row__poster" onClick={() => openShow(show.id)}>
+      <button className="ep-row__poster" onClick={() => openShow(show.id, { s: s, e: e })}>
         <Poster path={show.poster} alt={show.name} />
       </button>
       <div className="ep-row__body">
-        <button className="show-pill" onClick={() => openShow(show.id)}>
+        <button className="show-pill" onClick={() => openShow(show.id, { s: s, e: e })}>
           {show.name.toUpperCase()} <span className="show-pill__chev">›</span>
         </button>
         <div className="ep-row__se">{U.seLabel(s, e)} {rem}</div>

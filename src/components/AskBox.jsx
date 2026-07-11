@@ -47,7 +47,12 @@ export default function AskBox({ onAdded }) {
         }).catch(() => null);
       }));
     }).then((resolved) => {
-      setCards((resolved || []).filter(Boolean));
+      /* v2.7.3: owned titles are dropped from picks deterministically;
+         the model's no-library-titles rule cannot hold past the
+         librarySummary cap. The text answer still covers owned titles
+         when the question is about them; the card's only function is
+         an add button, useless for something already added. */
+      setCards((resolved || []).filter((c) => c && !Store.ownsTitle(c.item.media_type, c.item.id)));
       setBusy(false);
     }).catch((e) => {
       setErr(e.message || 'Something went wrong.');

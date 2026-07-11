@@ -6,7 +6,7 @@
    fetch fails soft: a section that cannot load simply does not render.
    The tellylog:v1 schema is untouched; enrichment lives in the tmdb.js
    in-memory cache, not in localStorage. */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import * as Store from '../lib/store.js';
 import * as TMDB from '../lib/tmdb.js';
 import * as U from '../lib/util.js';
@@ -18,11 +18,12 @@ function fmtAirDate(iso) {
   return ts ? U.fmtDate(ts) : '';
 }
 
-function Season({ sh, s, count, watchedMap, defaultOpen }) {
+function Season({ sh, s, count, watchedMap, defaultOpen, focusEp }) {
   const [open, setOpen] = useState(!!defaultOpen);
   const [eps, setEps] = useState(null);       // null=not loaded, []=loaded empty
   const [err, setErr] = useState(false);
   const seenS = (sh.watched[s] || []).length;
+  const focusRef = useRef(null);
 
   useEffect(() => {
     if (open && eps === null && !err) {
@@ -31,6 +32,14 @@ function Season({ sh, s, count, watchedMap, defaultOpen }) {
       }).catch(() => setErr(true));
     }
   }, [open, eps, err, sh.id, s]);
+
+  /* v2.7.3: when the modal was opened from a specific episode row,
+     scroll that episode into view once its season body has rendered. */
+  useEffect(() => {
+    if (focusEp && eps && focusRef.current) {
+      focusRef.current.scrollIntoView({ block: 'center' });
+    }
+  }, [focusEp, eps]);
 
   const unaired = !count; /* 0 episodes = announced but not released */
 
@@ -73,7 +82,11 @@ function Season({ sh, s, count, watchedMap, defaultOpen }) {
                   watched && wTs ? 'Watched ' + U.fmtDate(wTs) : ''
                 ].filter(Boolean).join(' · ');
                 return (
-                  <div className={'season__ep' + (watched ? ' season__ep--watched' : '')} key={ep.episode_number}>
+                  <div
+                    className={'season__ep' + (watched ? ' season__ep--watched' : '') + (focusEp === ep.episode_number ? ' season__ep--focus' : '')}
+                    key={ep.episode_number}
+                    ref={focusEp === ep.episode_number ? focusRef : null}
+                  >
                     {ep.still_path
                       ? <FadeImg className="ep-still" src={TMDB.img(ep.still_path, 'w185')} alt="" />
                       : <div className="ep-still ep-still--empty" aria-hidden="true">📺</div>}
@@ -113,7 +126,7 @@ function NextUp({ sh }) {
   );
 }
 
-export default function ShowModal({ id }) {
+export default function ShowModal({ id, focus }) {
   const { closeModal, toast, openShow, openPreview } = useApp();
   const sh = Store.get().shows[id];
 
@@ -271,7 +284,7 @@ export default function ShowModal({ id }) {
       <div className="modal__seasons">
         <SectionLabel>SEASONS</SectionLabel>
         {seasonNums.map((s) => (
-          <Season key={s} sh={sh} s={s} count={sh.seasons[s]} watchedMap={watchedMap} defaultOpen={s === nextSeason} />
+          <Season key={s} sh={sh} s={s} count={sh.seasons[s]} watchedMap={watchedMap} defaultOpen={focus ? s === focus.s : s === nextSeason} focusEp={focus && focus.s === s ? focus.e : null} />
         ))}
       </div>
 

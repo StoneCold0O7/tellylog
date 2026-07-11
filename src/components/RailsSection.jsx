@@ -38,6 +38,20 @@ function basisLine(anchor) {
   return 'Built on ' + names + ' from your library.';
 }
 
+/* v2.7.3: recommendations must never include titles already in the
+   library, in any state (tracking, watchlisted, archived). The model
+   is told this but cannot enforce it past the librarySummary cap;
+   this deterministic filter can. Rails emptied by it are dropped. */
+function stripOwned(rails) {
+  return (rails || []).map(function (r) {
+    return Object.assign({}, r, {
+      cards: (r.cards || []).filter(function (c) {
+        return c && c.item && !Store.ownsTitle(c.item.media_type, c.item.id);
+      })
+    });
+  }).filter(function (r) { return r.cards.length > 0; });
+}
+
 export default function RailsSection({ onAdded }) {
   const [llm, setLlm] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -68,7 +82,11 @@ export default function RailsSection({ onAdded }) {
     const usable = validRailsCache(cached) ? cached : null;
     const decision = refreshDecision(usable, h, units);
     if (decision !== 'generate' && usable) {
-      setRails(usable.rails);
+      /* v2.7.3: strip owned titles ON SERVE, not just on generate. A
+         cache written before a big import (or before yesterday's add)
+         legally serves stale under the gate; without this filter it
+         recommends titles the user now owns until the gate reopens. */
+      setRails(stripOwned(usable.rails));
       setNote(usable.note || '');
       return;
     }
@@ -92,7 +110,7 @@ export default function RailsSection({ onAdded }) {
           basis: anchors[i] ? basisLine(anchors[i]) : '',
           cards: cards.filter(Boolean)
         }));
-      })).then((resolved) => ({ resolved: resolved.filter((r) => r.cards.length), note: res.note }));
+      })).then((resolved) => ({ resolved: stripOwned(resolved), note: res.note }));
     }).then((out) => {
       if (!alive) return;
       setRails(out.resolved);

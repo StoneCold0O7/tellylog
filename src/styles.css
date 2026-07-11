@@ -942,6 +942,8 @@ a.provider--link:hover .provider__kind { color: var(--ink); }
   border: 1px solid var(--line); border-radius: 8px;
   padding: 6px 10px; font-size: 14px;
 }
+/* v2.7.3: the episode a row was opened from, briefly emphasised */
+.season__ep--focus { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
 /* v2.7.2: progress bar inside a history aggregate row */
 .progress--row { border-radius: 3px; overflow: hidden; margin-top: 6px; max-width: 340px; }
 
