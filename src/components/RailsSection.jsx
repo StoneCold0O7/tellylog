@@ -41,15 +41,51 @@ function basisLine(anchor) {
 /* v2.7.3: recommendations must never include titles already in the
    library, in any state (tracking, watchlisted, archived). The model
    is told this but cannot enforce it past the librarySummary cap;
-   this deterministic filter can. Rails emptied by it are dropped. */
-function stripOwned(rails) {
-  return (rails || []).map(function (r) {
+   this deterministic filter can. Rails emptied by it are dropped,
+   except during generation (keepEmpty), where the backfill below gets
+   a chance to top them up from TMDB first. */
+function stripOwned(rails, keepEmpty) {
+  var out = (rails || []).map(function (r) {
     return Object.assign({}, r, {
       cards: (r.cards || []).filter(function (c) {
         return c && c.item && !Store.ownsTitle(c.item.media_type, c.item.id);
       })
     });
-  }).filter(function (r) { return r.cards.length > 0; });
+  });
+  return keepEmpty ? out : out.filter(function (r) { return r.cards.length > 0; });
+}
+
+/* The rail displays up to this many cards. */
+var DISPLAY_CAP = 5;
+
+/* Deterministic TMDB backfill (Option A). A large library owns most of
+   the model's obvious genre picks, so after the owned-filter a rail can
+   render only one or two cards. When a rail is short, top it up to
+   DISPLAY_CAP from TMDB's popular-in-genre list: popularity-ranked,
+   owned and duplicate titles excluded, ZERO extra LLM cost. Backfilled
+   cards carry fill:true and the rail carries filled:true so the caption
+   can disclose it; silently mixing popularity picks into a taste-
+   grounded rail would break the honesty rule the rails rest on. Any
+   failure returns the rail unchanged. */
+function backfillRail(rail, anchor) {
+  if (!anchor || rail.cards.length >= DISPLAY_CAP) return Promise.resolve(rail);
+  var isMovie = anchor.kind === 'movie';
+  var gid = isMovie ? TMDB.movieGenreId(anchor.genre) : TMDB.tvGenreId(anchor.genre);
+  if (!gid) return Promise.resolve(rail);
+  var call = isMovie ? TMDB.discoverMovie(gid) : TMDB.discoverTV(gid);
+  return call.then(function (out) {
+    var mt = isMovie ? 'movie' : 'tv';
+    var have = {};
+    rail.cards.forEach(function (c) { have[c.item.media_type + '-' + c.item.id] = true; });
+    var extra = (out.results || []).filter(function (it) {
+      return it && it.id && !have[mt + '-' + it.id] && !Store.ownsTitle(mt, it.id);
+    }).slice(0, DISPLAY_CAP - rail.cards.length).map(function (it) {
+      it.media_type = mt;
+      return { item: it, reason: '', fill: true };
+    });
+    if (extra.length) return Object.assign({}, rail, { cards: rail.cards.concat(extra), filled: true });
+    return rail;
+  }).catch(function () { return rail; });
 }
 
 export default function RailsSection({ onAdded }) {
@@ -110,7 +146,19 @@ export default function RailsSection({ onAdded }) {
           basis: anchors[i] ? basisLine(anchors[i]) : '',
           cards: cards.filter(Boolean)
         }));
-      })).then((resolved) => ({ resolved: stripOwned(resolved), note: res.note }));
+      })).then((resolved) => {
+        /* Strip owned but keep emptied rails alive long enough for the
+           backfill to rescue them, then drop whatever is still empty
+           (e.g. a genre whose TMDB discover returned nothing usable). */
+        const stripped = stripOwned(resolved, true);
+        return Promise.all(stripped.map((r) => {
+          const anchor = anchors.find((a) => a.genre === r.genre) || null;
+          return backfillRail(r, anchor);
+        })).then((filled) => ({
+          resolved: filled.filter((r) => r.cards.length > 0),
+          note: res.note
+        }));
+      });
     }).then((out) => {
       if (!alive) return;
       setRails(out.resolved);
@@ -145,12 +193,14 @@ export default function RailsSection({ onAdded }) {
       {(rails || []).map((r) => (
         <div className="rail" key={'genre-' + r.genre}>
           <SectionLabel>{'BECAUSE YOU WATCH ' + String(r.genre).toUpperCase()}</SectionLabel>
-          {r.basis ? <div className="rail__basis">{r.basis}</div> : null}
+          {r.basis || r.filled ? (
+            <div className="rail__basis">
+              {r.basis}
+              {r.filled ? (r.basis ? ' ' : '') + 'Rounded out with popular ' + r.genre + ' you have not logged yet.' : ''}
+            </div>
+          ) : null}
           <div className="grid">
-            {/* v2.7.4: display cap of 5; the cache keeps up to 9 filtered
-                picks per rail so later owned-strips backfill from spares
-                instead of thinning the rail. */}
-            {r.cards.slice(0, 5).map((c) => <ResultCard key={c.item.media_type + '-' + c.item.id} item={c.item} onAdded={onAdded} />)}
+            {r.cards.slice(0, DISPLAY_CAP).map((c) => <ResultCard key={c.item.media_type + '-' + c.item.id} item={c.item} onAdded={onAdded} />)}
           </div>
         </div>
       ))}

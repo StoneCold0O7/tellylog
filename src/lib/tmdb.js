@@ -152,6 +152,21 @@ export function movieVideos(id) {
 export function movieRecommendations(id) {
   return request('/movie/' + id + '/recommendations', {});
 }
+/* TMDB genre ids + discover, for the deterministic Explore rails
+   backfill that tops up owned-thinned genre rails at zero LLM cost.
+   These ids are stable public constants (TMDB API v3); hardcoding them
+   avoids a /genre/{kind}/list call per load. An unknown genre name
+   returns null and the backfill quietly skips (correct degradation). */
+var TV_GENRE_IDS = { 'Action & Adventure': 10759, 'Animation': 16, 'Comedy': 35, 'Crime': 80, 'Documentary': 99, 'Drama': 18, 'Family': 10751, 'Kids': 10762, 'Mystery': 9648, 'News': 10763, 'Reality': 10764, 'Sci-Fi & Fantasy': 10765, 'Soap': 10766, 'Talk': 10767, 'War & Politics': 10768, 'Western': 37 };
+var MOVIE_GENRE_IDS = { 'Action': 28, 'Adventure': 12, 'Animation': 16, 'Comedy': 35, 'Crime': 80, 'Documentary': 99, 'Drama': 18, 'Family': 10751, 'Fantasy': 14, 'History': 36, 'Horror': 27, 'Music': 10402, 'Mystery': 9648, 'Romance': 10749, 'Science Fiction': 878, 'TV Movie': 10770, 'Thriller': 53, 'War': 10752, 'Western': 37 };
+export function tvGenreId(name) { return TV_GENRE_IDS[name] || null; }
+export function movieGenreId(name) { return MOVIE_GENRE_IDS[name] || null; }
+export function discoverTV(genreId) {
+  return request('/discover/tv', { with_genres: String(genreId), sort_by: 'popularity.desc', 'vote_count.gte': '200' });
+}
+export function discoverMovie(genreId) {
+  return request('/discover/movie', { with_genres: String(genreId), sort_by: 'popularity.desc', 'vote_count.gte': '500' });
+}
 export function trendingTV() {
   return request('/trending/tv/week', {});
 }
