@@ -6,9 +6,8 @@
    arrives as the ?p= query param. Forwards GETs to
    api.themoviedb.org/3/<p> with the key from the TMDB_API_KEY env var
    appended server-side. Returns 503 until the env var exists and an
-   owner-actionable message if TMDB rejects the server key.
-   v2.7.4: discover added for the deterministic rails backfill. */
-const ALLOWED = /^(search|tv|movie|trending|configuration|discover)(\/|$)/;
+   owner-actionable message if TMDB rejects the server key. */
+const ALLOWED = /^(search|tv|movie|trending|configuration)(\/|$)/;
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {

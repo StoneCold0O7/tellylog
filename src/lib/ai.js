@@ -98,10 +98,7 @@ export function rails(library, anchors) {
       rails: Array.isArray(data.rails) ? data.rails.slice(0, 4).map(function (r) {
         return {
           anchor: String(r.anchor || ''),
-          /* v2.7.4: 12, not 5. The model over-generates so the
-             deterministic ownsTitle filter has spares to eat; the UI
-             displays the first 5 survivors. */
-          picks: Array.isArray(r.picks) ? r.picks.slice(0, 12).map(function (p) {
+          picks: Array.isArray(r.picks) ? r.picks.slice(0, 5).map(function (p) {
             return {
               title: String(p.title || ''),
               year: p.year ? String(p.year) : '',

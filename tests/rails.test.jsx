@@ -35,19 +35,18 @@ describe('ai.rails()', () => {
       note: 'thin library',
       rails: [{
         anchor: 'Crime',
-        picks: Array.from({ length: 15 }, (_, i) => ({ title: 'P' + i, year: '2020', mediaType: 'tv', reason: 'r' }))
+        picks: Array.from({ length: 9 }, (_, i) => ({ title: 'P' + i, year: '2020', mediaType: 'tv', reason: 'r' }))
       }]
     }));
     vi.stubGlobal('fetch', fetchMock);
-    const res = await AI.rails('lib text', [{ genre: 'Crime', kind: 'tv', examples: ['A', 'B'], exclude: ['Owned1'] }]);
+    const res = await AI.rails('lib text', [{ genre: 'Crime', kind: 'tv', examples: ['A', 'B'] }]);
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(body.mode).toBe('rails');
     expect(body.anchors[0].genre).toBe('Crime');
     expect(body.anchors[0].examples).toEqual(['A', 'B']);
-    expect(body.anchors[0].exclude).toEqual(['Owned1']); // v2.7.4: owned-in-genre exclusions travel
     expect(res.note).toBe('thin library');
     expect(res.rails[0].anchor).toBe('Crime');
-    expect(res.rails[0].picks.length).toBe(12); // v2.7.4 over-generation: client caps at 12, UI shows 5 survivors
+    expect(res.rails[0].picks.length).toBe(5); // 4-5 picks ruling: capped client-side too
   });
 
   it('surfaces the server explanation on failure', async () => {

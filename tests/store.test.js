@@ -745,38 +745,4 @@ t('ownsTitle: true for tracked, watchlisted and archived titles in both media, f
   assert.strictEqual(Store.ownsTitle('movie', 84), false); // a show id is not a film id
 });
 
-t('ownedTitlesInGenre: filters by genre, respects kind, ranks by minutes, caps', () => {
-  Store.clearAll();
-  Store.addShow({ ...fakeDetails(90, 'BigCrimeShow', { 1: 10 }, 30), genres: [{ name: 'Crime' }] });
-  Store.markSeason(90, 1, 10, true);                       // 300 min, heaviest
-  Store.addShow({ ...fakeDetails(91, 'SmallCrimeShow', { 1: 2 }, 30), genres: [{ name: 'Crime' }] });
-  Store.markSeason(91, 1, 2, true);                        // 60 min
-  Store.addShow({ ...fakeDetails(92, 'DramaOnly', { 1: 5 }, 30), genres: [{ name: 'Drama' }] });
-  Store.markSeason(92, 1, 5, true);                        // wrong genre: invisible here
-  Store.addMovie({ id: 93, title: 'CrimeFilm', runtime: 100, genres: [{ name: 'Crime' }], release_date: '2020-01-01' });
-  Store.setMovieWatched(93, true);
-  /* tv kind: shows only, minutes-desc */
-  assert.deepStrictEqual(Store.ownedTitlesInGenre('Crime', 'tv'), ['BigCrimeShow', 'SmallCrimeShow']);
-  /* movie kind: films only */
-  assert.deepStrictEqual(Store.ownedTitlesInGenre('Crime', 'movie'), ['CrimeFilm']);
-  /* mixed kind: both media */
-  assert.deepStrictEqual(Store.ownedTitlesInGenre('Crime', 'mixed'), ['BigCrimeShow', 'CrimeFilm', 'SmallCrimeShow']);
-  /* cap binds */
-  assert.deepStrictEqual(Store.ownedTitlesInGenre('Crime', 'mixed', 1), ['BigCrimeShow']);
-});
-
-t('ownedTitlesInGenre: watchlisted and archived are owned; missing genreList is invisible, not guessed', () => {
-  Store.clearAll();
-  Store.addShowToWatchlist({ ...fakeDetails(94, 'SavedCrime', { 1: 5 }, 30), genres: [{ name: 'Crime' }] });
-  Store.addShow({ ...fakeDetails(95, 'DroppedCrime', { 1: 5 }, 30), genres: [{ name: 'Crime' }] });
-  Store.setArchived(95, true);
-  /* a legacy record with no genreList cannot be attributed to any genre;
-     ownsTitle still guards it deterministically downstream */
-  Store.addShow(fakeDetails(96, 'NoGenres', { 1: 5 }, 30));
-  const names = Store.ownedTitlesInGenre('Crime', 'tv');
-  assert.ok(names.indexOf('SavedCrime') !== -1);           // watchlist counts as owned
-  assert.ok(names.indexOf('DroppedCrime') !== -1);         // archived counts as owned
-  assert.ok(names.indexOf('NoGenres') === -1);             // invisible here, still owned downstream
-});
-
 console.log('\nAll ' + passed + ' tests passed.');

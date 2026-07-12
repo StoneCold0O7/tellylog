@@ -484,40 +484,6 @@ export function ownsTitle(mediaType, tmdbId) {
   return !!state.shows[tmdbId];
 }
 
-/* v2.7.4: per-genre exclusion list for the rails prompt. The
-   librarySummary cap means the model cannot see a 2k-title library,
-   so at import scale it wastes picks on famous titles the user
-   already owns and the deterministic filter then starves the rail.
-   Telling the model the owned titles IN the genre it is filling is
-   the cheapest fix: a fraction of a penny of input tokens per
-   generation. Best effort only (titles without genreList are
-   invisible here); Store.ownsTitle() remains the guarantee. Owned is
-   owned: tracked, watchlisted, archived and watched all count.
-   Ranked by watch minutes desc so the heaviest, most guessable
-   titles survive the cap. */
-export function ownedTitlesInGenre(genre, kind, cap) {
-  cap = cap || 80;
-  var out = [];
-  if (kind !== 'movie') {
-    Object.keys(state.shows).forEach(function (id) {
-      var sh = state.shows[id];
-      if (Array.isArray(sh.genreList) && sh.genreList.indexOf(genre) !== -1) {
-        out.push({ title: sh.name, minutes: showMinutes(sh) });
-      }
-    });
-  }
-  if (kind !== 'tv') {
-    Object.keys(state.movies).forEach(function (id) {
-      var mv = state.movies[id];
-      if (Array.isArray(mv.genreList) && mv.genreList.indexOf(genre) !== -1) {
-        out.push({ title: mv.title, minutes: mv.watchedAt ? (mv.runtime || 100) * rewatchOf(mv) : 0 });
-      }
-    });
-  }
-  out.sort(function (a, b) { return b.minutes - a.minutes || a.title.localeCompare(b.title); });
-  return out.slice(0, cap).map(function (t) { return t.title; });
-}
-
 /* Compact plain-text library summary for the Phase 2 ask box. Sent to
    the serverless endpoint as LLM context. Pure read, no persistence. */
 export function librarySummary(maxShows, maxMovies) {

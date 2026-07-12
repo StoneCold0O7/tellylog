@@ -52,7 +52,7 @@ export default function AskBox({ onAdded }) {
          librarySummary cap. The text answer still covers owned titles
          when the question is about them; the card's only function is
          an add button, useless for something already added. */
-      setCards((resolved || []).filter((c) => c && !Store.ownsTitle(c.item.media_type, c.item.id)));
+      setCards((resolved || []).filter((c) => c && !Store.ownsTitle(c.item.media_type, c.item.id)).slice(0, 7));
       setBusy(false);
     }).catch((e) => {
       setErr(e.message || 'Something went wrong.');

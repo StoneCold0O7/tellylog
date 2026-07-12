@@ -14,7 +14,8 @@ const SYSTEM = [
   'fences, no preamble, shaped exactly like:',
   '{"answer":"one or two conversational sentences",',
   ' "picks":[{"title":"...","year":"2021","mediaType":"tv|movie","reason":"one short sentence"}]}',
-  'Give 5 to 7 picks: 7 when the library is rich, never fewer than 5.',
+  'Give 8 to 10 picks: 10 when the library is rich, never fewer than',
+  '8 (the client filters some out, so headroom matters).',
   'If the library is thin, still give 5 but let the answer say the',
   'picks lean broad. Prefer titles NOT already in the library unless',
   'the user asks about their own list. Ground reasons in what the',
@@ -50,14 +51,11 @@ const SYSTEM_RAILS = [
   '"picks":[{"title":"...","year":"2021","mediaType":"tv|movie",',
   '"reason":"one short sentence"}]}],"note":""}',
   'One rail per anchor, in the exact order given. Never invent,',
-  'rename, drop or reorder anchors. Give 10 to 12 picks per rail,',
-  'never fewer than 8; the client filters and shows the best few, so',
-  'range wide across eras and countries rather than only the obvious',
-  'hits. Match each rail\'s medium to its kind: "tv" rails',
+  'rename, drop or reorder anchors. Give 9 picks per rail, never',
+  'fewer than 7 (the client filters some out, so headroom matters).',
+  'Match each rail\'s medium to its kind: "tv" rails',
   'pick shows, "movie" rails pick films, "mixed" rails may pick both.',
-  'Never pick a title already in the library. Each anchor may also',
-  'carry a list of titles the user already owns in that genre: never',
-  'pick any of those either. Ground every reason in',
+  'Never pick a title already in the library. Ground every reason in',
   'what the library actually shows, especially the example titles.',
   'If the library is thin, do NOT fake confidence: put one honest',
   'sentence in "note" saying the picks lean broad until more is',
@@ -150,10 +148,7 @@ export default async function handler(req, res) {
   }
   /* v2.7.0: genre anchors arrive from the client, capped at 4 and
      sanitised to plain strings so nothing structured sneaks into the
-     prompt. Examples are the titles that earned the genre locally.
-     v2.7.4: each anchor may carry `exclude`, the owned titles in that
-     genre (Store.ownedTitlesInGenre), capped at 80 names of 120 chars
-     so the payload stays bounded whatever the client sends. */
+     prompt. Examples are the titles that earned the genre locally. */
   let anchors = [];
   if (mode === 'rails') {
     anchors = (Array.isArray(body.anchors) ? body.anchors : []).slice(0, 4)
@@ -161,8 +156,6 @@ export default async function handler(req, res) {
         genre: String((a && a.genre) || '').slice(0, 60).trim(),
         kind: a && a.kind === 'movie' ? 'movie' : a && a.kind === 'mixed' ? 'mixed' : 'tv',
         examples: (Array.isArray(a && a.examples) ? a.examples : []).slice(0, 3)
-          .map((t) => String(t || '').slice(0, 120).trim()).filter(Boolean),
-        exclude: (Array.isArray(a && a.exclude) ? a.exclude : []).slice(0, 80)
           .map((t) => String(t || '').slice(0, 120).trim()).filter(Boolean)
       }))
       .filter((a) => a.genre);
@@ -188,14 +181,14 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: mode === 'taste' ? 300 : mode === 'rails' ? 3000 : 1400,
+        max_tokens: mode === 'taste' ? 300 : mode === 'rails' ? 2000 : 1400,
         system: mode === 'taste' ? SYSTEM_TASTE : mode === 'rails' ? SYSTEM_RAILS : SYSTEM,
         messages: [{
           role: 'user',
           content: mode === 'taste'
             ? 'My library:\n' + library + '\n\nSummarise my taste.'
             : mode === 'rails'
-            ? 'My library:\n' + library + '\n\nGenre anchors, in this exact order:\n' + anchors.map((a) => '- ' + a.genre + ' (' + a.kind + ')' + (a.examples.length ? ', earned by: ' + a.examples.join('; ') : '') + (a.exclude.length ? '. Already owned in this genre, NEVER pick any of: ' + a.exclude.join('; ') : '')).join('\n') + '\n\nFill the rails.'
+            ? 'My library:\n' + library + '\n\nGenre anchors, in this exact order:\n' + anchors.map((a) => '- ' + a.genre + ' (' + a.kind + ')' + (a.examples.length ? ', earned by: ' + a.examples.join('; ') : '')).join('\n') + '\n\nFill the rails.'
             : 'My library:\n' + (library || '(empty)') + '\n\nQuestion: ' + question
         }]
       })
@@ -233,7 +226,10 @@ export default async function handler(req, res) {
     if (mode === 'rails') {
       const rails = (Array.isArray(parsed.rails) ? parsed.rails : []).slice(0, 4).map((r) => ({
         anchor: String((r && r.anchor) || '').slice(0, 120),
-        picks: (Array.isArray(r && r.picks) ? r.picks : []).slice(0, 5).map((p) => ({
+        /* v2.7.4: 9 not 5. The client deterministically strips owned and
+           unresolvable picks, then displays at most 5; without headroom a
+           large library thins rails to one or two cards. */
+        picks: (Array.isArray(r && r.picks) ? r.picks : []).slice(0, 9).map((p) => ({
           title: String((p && p.title) || '').slice(0, 160),
           year: p && p.year ? String(p.year).slice(0, 4) : '',
           mediaType: p && p.mediaType === 'movie' ? 'movie' : 'tv',
@@ -245,7 +241,8 @@ export default async function handler(req, res) {
     }
     res.status(200).json({
       answer: String(parsed.answer || ''),
-      picks: Array.isArray(parsed.picks) ? parsed.picks.slice(0, 7) : []
+      /* v2.7.4: 10 not 7, same headroom logic as rails */
+      picks: Array.isArray(parsed.picks) ? parsed.picks.slice(0, 10) : []
     });
   } catch (e) {
     res.status(500).json({ error: 'The ask service crashed: ' + ((e && e.message) || 'unknown error') });
