@@ -6,7 +6,11 @@
 
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001';
 const MAX_QUESTION = 400;
-const MAX_LIBRARY = 6000;
+/* Raised 6000 -> 12000 chars to fit the larger 120-show / 50-film
+   librarySummary; without this the extra titles are truncated here and
+   the model never sees them. Haiku input is $1/M, so the extra ~1.5k
+   tokens per call is a fraction of a cent. */
+const MAX_LIBRARY = 12000;
 
 const SYSTEM = [
   'You recommend TV shows and films. You receive the user\'s watch',

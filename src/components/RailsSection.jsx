@@ -65,27 +65,43 @@ var DISPLAY_CAP = 5;
    owned and duplicate titles excluded, ZERO extra LLM cost. Backfilled
    cards carry fill:true and the rail carries filled:true so the caption
    can disclose it; silently mixing popularity picks into a taste-
-   grounded rail would break the honesty rule the rails rest on. Any
-   failure returns the rail unchanged. */
+   grounded rail would break the honesty rule the rails rest on.
+
+   A heavily-watched genre (Comedy for a decade-long tracker) owns most
+   of page 1's popular titles too, so we walk up to BACKFILL_PAGES pages
+   of discover until enough UNOWNED titles are found or the pages run
+   out. Any failure returns whatever was gathered so far. */
+var BACKFILL_PAGES = 3;
 function backfillRail(rail, anchor) {
   if (!anchor || rail.cards.length >= DISPLAY_CAP) return Promise.resolve(rail);
   var isMovie = anchor.kind === 'movie';
   var gid = isMovie ? TMDB.movieGenreId(anchor.genre) : TMDB.tvGenreId(anchor.genre);
   if (!gid) return Promise.resolve(rail);
-  var call = isMovie ? TMDB.discoverMovie(gid) : TMDB.discoverTV(gid);
-  return call.then(function (out) {
-    var mt = isMovie ? 'movie' : 'tv';
-    var have = {};
-    rail.cards.forEach(function (c) { have[c.item.media_type + '-' + c.item.id] = true; });
-    var extra = (out.results || []).filter(function (it) {
-      return it && it.id && !have[mt + '-' + it.id] && !Store.ownsTitle(mt, it.id);
-    }).slice(0, DISPLAY_CAP - rail.cards.length).map(function (it) {
-      it.media_type = mt;
-      return { item: it, reason: '', fill: true };
-    });
-    if (extra.length) return Object.assign({}, rail, { cards: rail.cards.concat(extra), filled: true });
-    return rail;
-  }).catch(function () { return rail; });
+  var mt = isMovie ? 'movie' : 'tv';
+  var need = DISPLAY_CAP - rail.cards.length;
+  var have = {};
+  rail.cards.forEach(function (c) { have[c.item.media_type + '-' + c.item.id] = true; });
+  var extra = [];
+  function done() {
+    if (!extra.length) return rail;
+    return Object.assign({}, rail, { cards: rail.cards.concat(extra), filled: true });
+  }
+  function fetchPage(page) {
+    if (extra.length >= need || page > BACKFILL_PAGES) return done();
+    var call = isMovie ? TMDB.discoverMovie(gid, page) : TMDB.discoverTV(gid, page);
+    return call.then(function (out) {
+      (out.results || []).forEach(function (it) {
+        if (extra.length >= need || !it || !it.id) return;
+        var k = mt + '-' + it.id;
+        if (have[k] || Store.ownsTitle(mt, it.id)) return;
+        have[k] = true;
+        it.media_type = mt;
+        extra.push({ item: it, reason: '', fill: true });
+      });
+      return fetchPage(page + 1);
+    }).catch(function () { return done(); });
+  }
+  return Promise.resolve().then(function () { return fetchPage(1); });
 }
 
 export default function RailsSection({ onAdded }) {

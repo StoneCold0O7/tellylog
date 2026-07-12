@@ -31,11 +31,11 @@ export const REFRESH_MIN_UNITS = 6;
    the shape the UI expects, so shape validity is now checked BEFORE
    the gate ever sees the cache. Any cache failing validation is
    treated as absent, which means regenerate. */
-/* Bumped to 3 when the deterministic TMDB rails backfill landed: the
-   bump invalidates the pre-backfill cache so every user's Explore
-   rails regenerate once, immediately, and fill to 5 cards instead of
-   serving the thin owned-stripped cache stale for up to 5 days. */
-export const RAILS_CACHE_V = 3;
+/* Bumped on each rails-logic change so caches regenerate once,
+   immediately, instead of serving a thin result stale for up to 5 days.
+   3 = deterministic TMDB backfill; 4 = multi-page backfill plus the
+   120/50 library cap (a bigger library shifts anchors and picks). */
+export const RAILS_CACHE_V = 4;
 
 export function validRailsCache(c) {
   return !!(c && c.v === RAILS_CACHE_V && c.h && c.ts &&

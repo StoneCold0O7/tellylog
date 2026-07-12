@@ -474,8 +474,8 @@ export function watchedMapFor(showId) {
 
 /* v2.7.3: deterministic owned-title check for AI surfaces. The prompt
    already tells the model never to pick library titles, but
-   librarySummary is capped at 30 shows / 20 films for token cost, so
-   past ~50 titles the model literally cannot know what is owned. At
+   librarySummary is capped at 120 shows / 50 films for token cost, so
+   past ~170 titles the model literally cannot know what is owned. At
    import scale (the owner's TV Time import: 2k+ titles) the prompt
    rule is structurally unenforceable; this check is the guarantee.
    Tracking, watchlisted, archived: owned is owned. */
@@ -487,8 +487,12 @@ export function ownsTitle(mediaType, tmdbId) {
 /* Compact plain-text library summary for the Phase 2 ask box. Sent to
    the serverless endpoint as LLM context. Pure read, no persistence. */
 export function librarySummary(maxShows, maxMovies) {
-  maxShows = maxShows || 30;
-  maxMovies = maxMovies || 20;
+  /* Raised from 30/20 to 120/50 so the model sees more of a large
+     library: it can avoid more owned titles and ground picks in more of
+     the real taste. Server MAX_LIBRARY was raised to match. Cost is
+     input-only and marginal on Haiku. */
+  maxShows = maxShows || 120;
+  maxMovies = maxMovies || 50;
   var lines = [];
   var shows = Object.keys(state.shows).map(function (id) { return state.shows[id]; });
   shows.sort(function (a, b) { return (b.lastWatchedAt || b.added) - (a.lastWatchedAt || a.added); });
