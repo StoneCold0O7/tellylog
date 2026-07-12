@@ -10,6 +10,7 @@ import * as Store from '../src/lib/store.js';
 import { AppContext } from '../src/context.js';
 import StatsModal from '../src/components/StatsModal.jsx';
 import ShowsTab from '../src/components/ShowsTab.jsx';
+import WatchlistModal from '../src/components/WatchlistModal.jsx';
 
 globalThis.fetch = () => Promise.reject(new Error('offline'));
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -93,16 +94,27 @@ describe('StatsModal drill-downs (v2.5.0)', () => {
   });
 });
 
-describe('Shows tab watchlist (v2.5.0)', () => {
-  it('watchlisted shows render in WATCHLIST, not the queue, and Start moves them', async () => {
+describe('Shows tab watchlist (v2.7.1+ modal)', () => {
+  it('the Shows tab surfaces the Watchlist button, and the modal lists the saved show with Start moving it to the queue', async () => {
     const [a] = show(4, 'SavedShow', ['Drama'], 0, null, { watchlist: true });
     const [b, logB] = show(5, 'ActiveShow', ['Drama'], 1, Date.now());
     seed({ 4: a, 5: b }, logB);
-    const el = await mount(<ShowsTab />);
-    expect(el.textContent).toContain('WATCHLIST (1)');
-    expect(el.textContent).toContain('SavedShow');
-    expect(el.textContent).toContain('Saved to watch later');
-    const start = Array.from(el.querySelectorAll('button')).find((x) => x.textContent === 'Start');
+
+    /* v2.7.1 moved the inline WATCHLIST section into a modal opened from
+       a top-of-tab button; the saved count lives on that button now, and
+       the old all-caps "WATCHLIST (n)" heading no longer renders inline. */
+    const tab = await mount(<ShowsTab />);
+    expect(tab.textContent).toContain('🔖 Watchlist (1)');
+    expect(tab.textContent).not.toContain('WATCHLIST (1)');
+    expect(tab.textContent).not.toContain('Saved to watch later');
+
+    /* The saved rows themselves live in WatchlistModal (opened via
+       openModal, stubbed here), so mount it directly to exercise their
+       copy and the Start action. */
+    const modal = await mount(<WatchlistModal />);
+    expect(modal.textContent).toContain('SavedShow');
+    expect(modal.textContent).toContain('Saved to watch later');
+    const start = Array.from(modal.querySelectorAll('button')).find((x) => x.textContent === 'Start');
     expect(start).toBeTruthy();
     await act(async () => { start.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
     expect(Store.get().shows[4].watchlist).toBe(false);
