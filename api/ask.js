@@ -181,7 +181,11 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: mode === 'taste' ? 300 : mode === 'rails' ? 2000 : 1400,
+        /* Rails must fit up to 4 rails x 9 picks (~36 JSON items) in one
+           reply. 2000 truncated that on a rich library, so JSON.parse
+           failed and the rail fell back to the "unusable answer" note.
+           Pre-zip this was 3000; 3500 restores headroom with a margin. */
+        max_tokens: mode === 'taste' ? 300 : mode === 'rails' ? 3500 : 1400,
         system: mode === 'taste' ? SYSTEM_TASTE : mode === 'rails' ? SYSTEM_RAILS : SYSTEM,
         messages: [{
           role: 'user',
