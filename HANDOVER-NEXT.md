@@ -1,15 +1,19 @@
-# TellyLog handover: after v2.7.7. All technical work is DONE, the test suite is fully green, browser checklists are open. Next session: the LinkedIn post.
+# TellyLog handover: after v2.7.7. PROJECT COMPLETE. Every planned deliverable has shipped and is live, including the LinkedIn post. No session is pending.
 
-Date: 13 July 2026. Supersedes every earlier handover. Pair with the updated CONTEXT.md. Development runs in Claude Code now; CLAUDE.md at the repo root carries the standing rules and the repo deploys by `git push` to main (Vercel auto-builds). v2.7.6 shipped two small UX changes (an add-to-phone tag plus inline install instructions on Profile, and a clear ✕ in the search bars). v2.7.7 is the same-day follow-up after the owner verified v2.7.6 on his phone: the tag was reworded to a how-to, made to scroll to the install section rather than land at the top of Profile, and the Films tab was fixed (it was the only non-scrollable tab, so mobile Safari's toolbar shifted the fixed bottom nav up; `.view` min-height is now 100vh so short tabs fill the screen). All tests green, `vite build` clean, verified live in a local preview before each push; the owner walks CHECKLIST-V2_7_7.md (and any open items from CHECKLIST-V2_7_6.md) on the deployed site. The one thing the desktop preview cannot reproduce is mobile Safari's toolbar, so the Films look on-device is his to confirm.
+Date: 13 July 2026. Supersedes every earlier handover. Pair with the updated CONTEXT.md. Development runs in Claude Code now; CLAUDE.md at the repo root carries the standing rules and the repo deploys by `git push` to main (Vercel auto-builds). v2.7.6 shipped two small UX changes (an add-to-phone tag plus inline install instructions on Profile, and a clear ✕ in the search bars). v2.7.7 is the same-day follow-up after the owner verified v2.7.6 on his phone: the tag was reworded to a how-to, made to scroll to the install section rather than land at the top of Profile, and the Films tab was fixed (it was the only non-scrollable tab, so mobile Safari's toolbar shifted the fixed bottom nav up; `.view` min-height is now 100vh so short tabs fill the screen). The owner then verified v2.7.7 on his phone and confirmed all good.
 
-## 1. What to do now, in order
+**As of 13 July 2026 the LinkedIn post is LIVE (the owner posted it), which was the last non-optional deliverable, so every planned item has now shipped.** The project moves to maintenance mode: future work is ad-hoc owner requests under the same audit-first contract. Sections 2 and 3 below are the (now archived) LinkedIn brief and voice source, kept as record. Currently on the owner's radar but NOT yet built: privacy-friendly visitor analytics (Vercel Web Analytics is the leading option, cookieless, no consent banner, one small code change to install `@vercel/analytics`).
 
-1. v2.7.7 is pushed to main. Files this round: changed `ProfileTab.jsx` (scroll-to-section), `ShowsTab.jsx` and `MoviesTab.jsx` (tag wording), `styles.css` (`.view` min-height, `.install-anchor`), `package.json` (2.7.7), plus CONTEXT.md, HANDOVER-NEXT.md, SESSION-LOG-V2_7_7.md, CHECKLIST-V2_7_7.md. Deleted files: NONE. Confirm the Vercel build is green (a red build is a stop signal).
-2. Walk CHECKLIST-V2_7_7.md on the deployed site (phone ideally): the reworded tag, the tap landing scrolled to the ADD TO YOUR PHONE section, and above all the Films tab bottom nav sitting flush like the other tabs. The full v2.7.6 walk (CHECKLIST-V2_7_6.md) still stands for anything not re-covered.
-3. If anything fails, the LinkedIn session fixes it FIRST; nothing gets posted over a known bug.
-4. Optional follow-up offered but not built: a `ClearButton` render test in the `mic.test.jsx` mould. The AskBox clear button was exercised on the live site in v2.7.6 (it only mounts where the serverless LLM key is present).
+## 1. State of play, nothing pending
 
-## 2. The caveat carried forward
+1. v2.7.7 is live and owner-verified on his phone (the reworded how-to tag, the tap scrolling to the ADD TO YOUR PHONE section, the Films tab bottom nav sitting flush). CHECKLIST-V2_7_6.md and CHECKLIST-V2_7_7.md both walked and passed.
+2. The LinkedIn post is live. That was the last non-optional deliverable, so the roadmap is empty.
+3. Open, optional, never blocking: privacy-friendly visitor analytics (owner asked, leading option is Vercel Web Analytics, a small `@vercel/analytics` install plus one `<Analytics/>` component, then enable in the Vercel dashboard; audit note is the "nothing uploaded" copy, which anonymous cookieless analytics only partly touch since watch data still never leaves the device); a `ClearButton` render test in the `mic.test.jsx` mould; the DEFERRED streaming-import track (gate: obtain one real DSAR/export file per service and test it against the wizard before any code); tuning the AI refresh-gate thresholds if real-world use argues for it.
+4. Any future reopen follows the same audit-first, one-concern-per-change contract.
+
+## 2. The LinkedIn brief (ARCHIVED, the post is live)
+
+The post shipped on 13 July 2026; this section and section 3 are kept only as the record of how it was briefed and voiced.
 
 The final deliverable is a humanly, upbeat LinkedIn post in the OWNER'S voice: professional, warm, human, no emoji walls, no sticker energy, nothing that smells AI-generated or childish. It should show the human side and the AI-strategist side at once. The owner has delivered the full story in his own words; section 3 is that story, structured. The post gets drafted from section 3, not invented.
 
@@ -34,12 +38,14 @@ Drafting notes: 150-220 words, line breaks between beats, 3-4 targeted hashtags 
 
 Provenance flag for the next session, unresolved [Guessing]: this brief says the history was logged manually, but the CONTEXT v2.7.3 build entry says "the owner completed the real TV Time import against the live app: 2k+ titles, 10.5k+ episodes." These conflict on whether the real library came from a manual campaign or an import file. Confirm with the owner which is true BEFORE the post makes any data-provenance claim; do not assert either in his voice until then.
 
-## 4. Paste this prompt into the next new chat
+## 4. Paste this prompt into the next new chat (maintenance opener)
+
+The roadmap is empty, so there is no scripted next session. For any ad-hoc request, open with this:
 
 ```
-TellyLog: the LinkedIn post session, the final deliverable. Attach CONTEXT.md and this HANDOVER-NEXT.md. State of play: v2.7.7 live at tellylog-3d2u.vercel.app (add-to-phone how-to tag scrolling to inline install instructions, search-bar clear button, Films tab bottom-nav fix), Vercel build [GREEN/FAILED], full test suite green (112 node, 26 vitest), CHECKLIST-V2_7_7.md result: [ALL PASSED / list failures].
+TellyLog: an ad-hoc change on a COMPLETE, live project. The clone is at C:\Users\LEGION\tellylog (NOT the Claude Code default working dir, which is empty). Read CLAUDE.md, CONTEXT.md and HANDOVER-NEXT.md from the repo root first; they are the source of truth. State of play: v2.7.7 live at tellylog-3d2u.vercel.app, full test suite green (112 node, 26 vitest), all planned deliverables including the LinkedIn post shipped. Deploy is `git push` to main (Vercel auto-builds; a red build is a stop signal). I am non-technical and never run code locally.
 
-This session's job: draft the LinkedIn post from HANDOVER-NEXT.md section 3, in MY voice per the caveat in section 2. Give me 2-3 variants with different hooks, tell me which you would post and why, then we refine one. Confirm the posting-time recommendation and the before-15-July timing point. Audit first: if the checklist failed anywhere, we fix that before any drafting. Remind me to close around 15 messages.
+What I want this session: [DESCRIBE]. Audit first: stress-test my idea, lead with the weakest part, tell me before you push (it goes live). One concern per change, keep ImportWizard and the schema untouched unless the ask is explicitly about them.
 ```
 
 ## 5. Standing facts
