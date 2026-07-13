@@ -10,6 +10,7 @@ import ResultCard from './ResultCard.jsx';
 import AskBox from './AskBox.jsx';
 import RailsSection from './RailsSection.jsx';
 import MicButton from './MicButton.jsx';
+import ClearButton from './ClearButton.jsx';
 
 export default function ExploreTab() {
   const { offerGrid, exploreFocus } = useApp();
@@ -53,7 +54,8 @@ export default function ExploreTab() {
   return (
     <>
       <div className="search-wrap micwrap">
-        <input className="search search--mic" type="search" placeholder="Search shows and films" autoComplete="off" value={q} onChange={(e) => runSearch(e.target.value)} />
+        <input className={'search search--mic' + (q ? ' search--clearable' : '')} type="search" placeholder="Search shows and films" autoComplete="off" value={q} onChange={(e) => runSearch(e.target.value)} />
+        {q ? <ClearButton onClear={() => runSearch('')} label="Clear search" /> : null}
         <MicButton onText={runSearch} />
       </div>
       <div>

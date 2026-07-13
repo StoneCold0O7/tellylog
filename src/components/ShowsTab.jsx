@@ -102,6 +102,12 @@ export default function ShowsTab() {
 
   return (
     <>
+      <div className="install-tagrow">
+        <button className="install-tag" onClick={() => go('profile', 'install')}>
+          📱 Add this app to your phone
+        </button>
+      </div>
+
       <div className="shows-topbar">
         <button className="btn btn--tiny" onClick={() => openModal({ type: 'watchlist' })}>🔖 Watchlist ({wl.length})</button>
       </div>

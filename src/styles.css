@@ -845,6 +845,19 @@ a { color: var(--link); }
 }
 @media (prefers-reduced-motion: reduce) { .mic--on { animation: none; } }
 
+/* Clear (✕) button: sits just left of the mic, shown only when the field
+   has text. The input reserves extra right padding while it is present. */
+.search-clear {
+  position: absolute; right: 40px; top: 50%; transform: translateY(-50%);
+  width: 30px; height: 30px; display: grid; place-items: center;
+  border: 0; border-radius: 10px; background: transparent;
+  color: var(--muted); cursor: pointer; font-size: 14px; line-height: 1;
+}
+.search-clear:hover { color: var(--ink); background: var(--surface-2); }
+.search--clearable { padding-right: 78px; }
+/* Suppress the browser's own type=search clear so there is only one ✕. */
+.search--mic::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+
 /* ---------- Phase 2: providers open the watch page ---------- */
 a.provider { text-decoration: none; color: inherit; }
 a.provider--link { cursor: pointer; border-radius: 12px; }
@@ -1028,3 +1041,43 @@ a.provider--link:hover .provider__kind { color: var(--ink); }
 
 /* v2.7.1 profile library kind + view segments */
 .seg-pair { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
+/* Add-to-phone: the persistent tag on Shows and Films that opens the
+   install instructions, plus the instructions themselves in the modal. */
+.install-tagrow { margin: 2px 0 10px; }
+.install-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; font: inherit; font-size: 13px; font-weight: 600;
+  color: var(--accent); background: var(--accent-soft);
+  border: 1px solid var(--accent-soft); border-radius: 999px;
+  text-decoration: underline; text-underline-offset: 2px;
+  cursor: pointer;
+}
+.install-tag:hover, .install-tag:focus-visible {
+  color: var(--accent-ink); background: var(--accent); border-color: var(--accent);
+}
+/* The instructions expand in place on Profile (opt-in fold-out), the same
+   affordance as the Archived section, rather than a popup. */
+.install-inline { margin: 0 0 8px; }
+.install-inline__toggle {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 12px 14px; text-align: left;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.install-inline__toggle:hover { background: var(--surface-2); }
+.install-inline__chev { transition: transform .15s ease; color: var(--muted); }
+.install-inline__chev--open { transform: rotate(180deg); }
+.install { display: flex; flex-direction: column; gap: 14px; margin: 12px 0 8px; }
+.install__intro { margin: 0; font-size: 14px; line-height: 1.5; color: var(--muted); }
+.install__block {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; padding: 14px 16px;
+}
+.install__head {
+  margin: 0 0 10px; font-size: 13px; font-weight: 700;
+  letter-spacing: .02em; text-transform: uppercase; color: var(--muted);
+}
+.install__steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+.install__steps li { font-size: 14px; line-height: 1.45; }
+@media (prefers-reduced-motion: reduce) { .install-inline__chev { transition: none; } }

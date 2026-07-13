@@ -7,12 +7,19 @@ import { useApp } from '../context.js';
 import { Poster, SectionLabel, Counter, Notice } from './shared.jsx';
 import InsightsSection from './InsightsSection.jsx';
 import StatsAsk from './StatsAsk.jsx';
+import InstallSteps from './InstallSteps.jsx';
 
 export default function ProfileTab() {
-  const { openShow, openPreview, openModal, toast, go, setMoviesSub } = useApp();
+  const { openShow, openPreview, openModal, toast, go, setMoviesSub, exploreFocus: navFocus } = useApp();
   const [showView, setShowView] = useState('posters'); // 'posters' | 'list'
   const [libKind, setLibKind] = useState('shows');     // 'shows' | 'films' (v2.7.1)
   const [editing, setEditing] = useState(false);
+  /* "Add to your phone" is an opt-in fold-out here (collapsed by default,
+     the same as the Archived section), BUT arriving from the tag on the
+     Shows or Films tab lands with it already open. go('profile','install')
+     carries that signal through the shared nav focus; a plain Profile visit
+     passes nothing, so it stays collapsed. */
+  const [installOpen, setInstallOpen] = useState(navFocus === 'install');
   const [nameDraft, setNameDraft] = useState(() => Store.profileName()); // v2.7.2
   const st = Store.stats();
   const shows = Object.keys(Store.get().shows).map((id) => Store.get().shows[id]);
@@ -218,6 +225,15 @@ export default function ProfileTab() {
           className={'seg__opt' + (Store.theme() === 'light' ? ' seg__opt--on' : '')}
           onClick={() => Store.setTheme('light')}
         >Light</button>
+      </div>
+
+      <SectionLabel>ADD TO YOUR PHONE</SectionLabel>
+      <div className="install-inline">
+        <button className="install-inline__toggle" onClick={() => setInstallOpen(!installOpen)} aria-expanded={installOpen}>
+          <span>📱 How to add to your phone</span>
+          <span className={'install-inline__chev' + (installOpen ? ' install-inline__chev--open' : '')} aria-hidden="true">▾</span>
+        </button>
+        {installOpen && <InstallSteps />}
       </div>
 
       {/* v2.6.0: the data actions moved into their own modal, same

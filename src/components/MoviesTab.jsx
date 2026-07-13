@@ -14,6 +14,14 @@ export default function MoviesTab() {
     : all.filter((m) => !!m.watchedAt);
   list.sort((a, b) => (b.watchedAt || b.added) - (a.watchedAt || a.added));
 
+  const installTag = (
+    <div className="install-tagrow">
+      <button className="install-tag" onClick={() => go('profile', 'install')}>
+        📱 Add this app to your phone
+      </button>
+    </div>
+  );
+
   const toggle = (
     <div className="subtabs">
       <button className={'subtab' + (sub === 'watchlist' ? ' subtab--on' : '')} onClick={() => setMoviesSub('watchlist')}>Watch list</button>
@@ -24,6 +32,7 @@ export default function MoviesTab() {
   if (list.length === 0) {
     return (
       <>
+        {installTag}
         {toggle}
         {sub === 'watchlist' ? (
           <EmptyState title="Your watchlist is empty!" sub="Add movies you want to watch.">
@@ -38,6 +47,7 @@ export default function MoviesTab() {
 
   return (
     <>
+      {installTag}
       {toggle}
       {list.map((m) => {
         const meta = [U.fmtRuntime(m.runtime), m.genres].filter(Boolean).join(' • ');

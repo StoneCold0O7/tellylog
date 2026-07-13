@@ -12,6 +12,7 @@ import * as TMDB from '../lib/tmdb.js';
 import { SectionLabel, Notice } from './shared.jsx';
 import ResultCard from './ResultCard.jsx';
 import MicButton from './MicButton.jsx';
+import ClearButton from './ClearButton.jsx';
 
 export default function AskBox({ onAdded }) {
   const [enabled, setEnabled] = useState(false);
@@ -66,11 +67,12 @@ export default function AskBox({ onAdded }) {
       <div className="askbox__row">
         <div className="micwrap">
           <input
-            className="search search--mic" type="text" autoComplete="off"
+            className={'search search--mic' + (q ? ' search--clearable' : '')} type="text" autoComplete="off"
             placeholder="Something funny under 30 minutes an episode…"
             value={q} onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
           />
+          {q ? <ClearButton onClear={() => setQ('')} label="Clear question" /> : null}
           <MicButton onText={setQ} label="Ask by voice" />
         </div>
         <button className="btn btn--primary askbox__go" onClick={submit} disabled={busy || !q.trim()}>

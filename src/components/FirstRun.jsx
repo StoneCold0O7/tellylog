@@ -7,6 +7,7 @@ import { useApp } from '../context.js';
 import { SectionLabel, Notice, apiErrorText } from './shared.jsx';
 import ResultCard from './ResultCard.jsx';
 import MicButton from './MicButton.jsx';
+import ClearButton from './ClearButton.jsx';
 
 export default function FirstRun() {
   const { openModal, offerGrid } = useApp();
@@ -37,10 +38,11 @@ export default function FirstRun() {
       <p className="firstrun__sub">Search anything, tap ＋ to start tracking.</p>
       <div className="search-wrap micwrap">
         <input
-          className="search search--mic" type="search" autoFocus autoComplete="off"
+          className={'search search--mic' + (q ? ' search--clearable' : '')} type="search" autoFocus autoComplete="off"
           placeholder="Try “Severance” or “Slow Horses”"
           value={q} onChange={(e) => runSearch(e.target.value)}
         />
+        {q ? <ClearButton onClear={() => runSearch('')} label="Clear search" /> : null}
         <MicButton onText={runSearch} />
       </div>
       {err ? <Notice>{apiErrorText(err)}</Notice> :

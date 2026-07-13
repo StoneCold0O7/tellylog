@@ -10,6 +10,7 @@ import React, { useState } from 'react';
 import { answerInsight, HELP_LINE } from '../lib/insightsQA.js';
 import { SectionLabel } from './shared.jsx';
 import MicButton from './MicButton.jsx';
+import ClearButton from './ClearButton.jsx';
 
 export default function StatsAsk() {
   const [q, setQ] = useState('');
@@ -31,11 +32,12 @@ export default function StatsAsk() {
       <div className="askbox__row">
         <div className="micwrap">
           <input
-            className="search search--mic" type="text" autoComplete="off"
+            className={'search search--mic' + (q ? ' search--clearable' : '')} type="text" autoComplete="off"
             placeholder="Busiest month? Most watched show?"
             value={q} onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') run(); }}
           />
+          {q ? <ClearButton onClear={() => setQ('')} label="Clear question" /> : null}
           <MicButton onText={(t) => run(t)} label="Ask by voice" />
         </div>
         <button className="btn btn--primary askbox__go" onClick={() => run()} disabled={!q.trim()}>Ask</button>
