@@ -1,5 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import { Analytics } from '@vercel/analytics/react';
 import * as Store from './lib/store.js';
 import App from './components/App.jsx';
 import './styles.css';
@@ -25,4 +26,14 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
 }
 
 Store.load();
-createRoot(document.getElementById('root')).render(<App />);
+/* Vercel Web Analytics: privacy-friendly, cookie-free page-view counts
+   plus the custom engagement events fired via track() (title_added,
+   explore_opened, ai_ask, install_help_opened). No-ops off Vercel and
+   logs to the console in dev; sends only once Web Analytics is enabled
+   in the Vercel dashboard. No watch data is ever included. */
+createRoot(document.getElementById('root')).render(
+  <>
+    <App />
+    <Analytics />
+  </>
+);

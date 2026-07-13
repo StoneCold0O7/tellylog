@@ -3,7 +3,7 @@
 Read CONTEXT.md (full project history, architecture, schema, rejected directions) and HANDOVER-NEXT.md (current state, next steps) before doing anything. They are the source of truth; this file is only the standing rules.
 
 ## Status (13 July 2026)
-Every planned deliverable has shipped and is live, including the LinkedIn post (the owner posted it). The app is live at tellylog-3d2u.vercel.app at v2.7.7. The project is in MAINTENANCE MODE: no session is pending, future work is ad-hoc owner requests under the same audit-first contract below. Currently on the owner's radar but NOT yet built: privacy-friendly visitor analytics (Vercel Web Analytics is the leading option).
+Every planned deliverable has shipped and is live, including the LinkedIn post (the owner posted it). The app is live at tellylog-3d2u.vercel.app at v2.7.8. The project is in MAINTENANCE MODE: no session is pending, future work is ad-hoc owner requests under the same audit-first contract below. v2.7.8 added Vercel Web Analytics plus four engagement events (title_added, explore_opened, ai_ask, install_help_opened); it collects nothing until the owner enables Web Analytics in the Vercel dashboard (Analytics tab, Enable).
 
 ## Contract
 - Audit-first: stress-test every owner proposal before building. Lead with the weakest part. Stop for structural blockers.

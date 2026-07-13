@@ -39,7 +39,7 @@ export default function DataModal() {
         <button className="btn btn--ghost" onClick={() => openModal({ type: 'settings' })}>TMDB API key</button>
         <button className="btn btn--danger" onClick={clearAll}>Delete everything</button>
       </div>
-      <p className="fineprint">Import accepts TV Time, Netflix, Letterboxd and IMDb exports plus TellyLog backups. All data is stored in this browser only. Nothing is uploaded anywhere. Metadata comes from TMDB.</p>
+      <p className="fineprint">Import accepts TV Time, Netflix, Letterboxd and IMDb exports plus TellyLog backups. Your watch history is stored in this browser only and is never uploaded. TellyLog counts anonymous visits with cookie-free analytics; nothing personal is collected. Metadata comes from TMDB.</p>
     </>
   );
 }

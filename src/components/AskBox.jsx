@@ -6,6 +6,7 @@
    five to seven picks (scaled to library size server-side), each resolved against TMDB so they render as the
    same add-able cards used everywhere else. */
 import React, { useEffect, useState } from 'react';
+import { track } from '@vercel/analytics';
 import * as AI from '../lib/ai.js';
 import * as Store from '../lib/store.js';
 import * as TMDB from '../lib/tmdb.js';
@@ -33,6 +34,7 @@ export default function AskBox({ onAdded }) {
   function submit() {
     const question = q.trim();
     if (!question || busy) return;
+    track('ai_ask');
     setBusy(true); setErr(''); setAnswer(''); setCards(null);
     AI.ask(question, Store.librarySummary()).then((res) => {
       setAnswer(res.answer);

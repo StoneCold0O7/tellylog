@@ -262,7 +262,7 @@ export default function ProfileTab() {
       <div className="data-actions">
         <button className="btn" onClick={() => openModal({ type: 'data' })}>🗂️ Manage your data</button>
       </div>
-      <p className="fineprint">All data is stored in this browser only. Nothing is uploaded anywhere. Metadata comes from TMDB.</p>
+      <p className="fineprint">Your watch history is stored in this browser only and is never uploaded. TellyLog counts anonymous visits with cookie-free analytics; nothing personal is collected. Metadata comes from TMDB.</p>
       <p className="fineprint">TellyLog is designed and built by Anmol. The code, the decision log and every reversal along the way are public: <a className="credit-link" href="https://github.com/StoneCold0O7/tellylog" target="_blank" rel="noreferrer">github.com/StoneCold0O7/tellylog</a> · <a className="credit-link" href="#/colophon">How this was made</a></p>
     </>
   );

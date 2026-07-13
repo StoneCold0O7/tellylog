@@ -2,6 +2,7 @@
    ExploreTab in Phase 1 so FirstRun and OnboardingGrid can reuse it.
    onAdded (optional) fires after a successful add. */
 import React, { useState } from 'react';
+import { track } from '@vercel/analytics';
 import * as Store from '../lib/store.js';
 import * as TMDB from '../lib/tmdb.js';
 import { useApp } from '../context.js';
@@ -22,12 +23,14 @@ export default function ResultCard({ item, onAdded }) {
     if (isTV) {
       TMDB.tvDetails(id).then((d) => {
         Store.addShow(d);
+        track('title_added', { kind: 'tv' });
         toast('Now tracking ' + d.name);
         if (onAdded) onAdded();
       }).catch(() => { setBusy(false); toast('Could not add that show.'); });
     } else {
       TMDB.movieDetails(id).then((d) => {
         Store.addMovie(d);
+        track('title_added', { kind: 'movie' });
         toast('Added ' + d.title + ' to your watchlist');
         if (onAdded) onAdded();
       }).catch(() => { setBusy(false); toast('Could not add that film.'); });

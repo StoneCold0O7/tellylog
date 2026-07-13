@@ -1,5 +1,6 @@
 /* App root. Replaces app.js: routing, tabs, modal host, toast. */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { track } from '@vercel/analytics';
 import * as Store from '../lib/store.js';
 import * as TMDB from '../lib/tmdb.js';
 import { useStoreRev } from '../hooks/useStore.js';
@@ -63,6 +64,9 @@ export default function App() {
     setTab(t);
     location.hash = '#/' + t;
     window.scrollTo(0, 0);
+    /* Engagement signals (anonymous, no watch data). */
+    if (t === 'explore') track('explore_opened');
+    if (focus === 'install') track('install_help_opened');
   }, []);
 
   const closeModal = useCallback(() => setModal(null), []);
