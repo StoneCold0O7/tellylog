@@ -85,7 +85,11 @@ a { color: var(--link); }
   max-width: 680px;
   margin: 0 auto;
   padding: 4px 14px 100px;
-  min-height: 70vh;
+  /* Fill the screen so a short tab (e.g. a 2-item Films watchlist) is as
+     tall as the others. Otherwise it is the only non-scrollable page, and
+     mobile Safari keeps its bottom toolbar expanded there, shifting the
+     fixed tab bar up while the taller, scrollable tabs sit flush. */
+  min-height: 100vh;
 }
 
 /* Bottom tab bar */
@@ -1056,6 +1060,9 @@ a.provider--link:hover .provider__kind { color: var(--ink); }
 .install-tag:hover, .install-tag:focus-visible {
   color: var(--accent-ink); background: var(--accent); border-color: var(--accent);
 }
+/* Scroll target for arriving from the tag; the offset clears the sticky
+   top bar so the section heading is not tucked under it. */
+.install-anchor { scroll-margin-top: 64px; }
 /* The instructions expand in place on Profile (opt-in fold-out), the same
    affordance as the Archived section, rather than a popup. */
 .install-inline { margin: 0 0 8px; }

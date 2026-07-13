@@ -104,7 +104,7 @@ export default function ShowsTab() {
     <>
       <div className="install-tagrow">
         <button className="install-tag" onClick={() => go('profile', 'install')}>
-          📱 Add this app to your phone
+          📱 How to add this app to your phone
         </button>
       </div>
 

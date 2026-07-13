@@ -1,5 +1,5 @@
 /* Profile tab: stats, poster strip, data actions. Mirrors renderProfile. */
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import * as Store from '../lib/store.js';
 import * as TMDB from '../lib/tmdb.js';
 import * as U from '../lib/util.js';
@@ -20,6 +20,24 @@ export default function ProfileTab() {
      carries that signal through the shared nav focus; a plain Profile visit
      passes nothing, so it stays collapsed. */
   const [installOpen, setInstallOpen] = useState(navFocus === 'install');
+  /* Arriving from the tag should not just land at the top of Profile: it
+     scrolls down to the ADD TO YOUR PHONE section (already open) so the
+     steps are in view immediately. go() had just scrolled to the top; this
+     runs after mount and overrides it. rAF waits for first layout so the
+     target position is real. */
+  const installRef = useRef(null);
+  useEffect(() => {
+    if (navFocus !== 'install' || !installRef.current) return;
+    const el = installRef.current;
+    /* setTimeout, not requestAnimationFrame: rAF callbacks are paused when
+       the tab is not foregrounded, so the jump could silently never fire.
+       The small delay lets the page lay out first. behavior:'auto' (instant)
+       because smooth scrollIntoView is a no-op in some embedded browsers; a
+       reliable jump to the section beats a pretty animation that does
+       nothing. scroll-margin-top on .install-anchor clears the sticky bar. */
+    const id = setTimeout(() => el.scrollIntoView({ behavior: 'auto', block: 'start' }), 60);
+    return () => clearTimeout(id);
+  }, [navFocus]);
   const [nameDraft, setNameDraft] = useState(() => Store.profileName()); // v2.7.2
   const st = Store.stats();
   const shows = Object.keys(Store.get().shows).map((id) => Store.get().shows[id]);
@@ -227,13 +245,15 @@ export default function ProfileTab() {
         >Light</button>
       </div>
 
-      <SectionLabel>ADD TO YOUR PHONE</SectionLabel>
-      <div className="install-inline">
-        <button className="install-inline__toggle" onClick={() => setInstallOpen(!installOpen)} aria-expanded={installOpen}>
-          <span>📱 How to add to your phone</span>
-          <span className={'install-inline__chev' + (installOpen ? ' install-inline__chev--open' : '')} aria-hidden="true">▾</span>
-        </button>
-        {installOpen && <InstallSteps />}
+      <div className="install-anchor" ref={installRef}>
+        <SectionLabel>ADD TO YOUR PHONE</SectionLabel>
+        <div className="install-inline">
+          <button className="install-inline__toggle" onClick={() => setInstallOpen(!installOpen)} aria-expanded={installOpen}>
+            <span>📱 How to add to your phone</span>
+            <span className={'install-inline__chev' + (installOpen ? ' install-inline__chev--open' : '')} aria-hidden="true">▾</span>
+          </button>
+          {installOpen && <InstallSteps />}
+        </div>
       </div>
 
       {/* v2.6.0: the data actions moved into their own modal, same
