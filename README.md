@@ -4,6 +4,8 @@ A TV and film tracker that keeps your data in your own browser and keeps its AI 
 
 This README leads with decisions rather than features, because the decisions are the product. The app is the evidence. If you only read one section, read the next one.
 
+For the same project read in money terms, unit economics, the cost ceiling and the commercial trade-offs, see [COMMERCIAL.md](COMMERCIAL.md).
+
 ## The decision record
 
 **The grounding principle.** No AI feature ships until it has real data underneath it. The natural-language ask box was specified in the very first strategy session but held dormant behind a health-check gate until a genuine watch history existed, because an LLM feature demonstrated on fake data is demo theatre. The recommendation rails were gated the same way: they were not built until a manual logging campaign had put the owner's real top shows into the library. When the planned TV Time export died, the gate did not die with it; it was satisfied the slow way, by hand.
