@@ -6,12 +6,13 @@
    Interactivity: click a bar, a slice, a legend row or a month point
    to see the titles behind the number. Selection state lives here;
    Charts.jsx stays a pure renderer. */
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import * as Store from '../lib/store.js';
 import * as TMDB from '../lib/tmdb.js';
+import { fmtNumber, fmtTvTime } from '../lib/util.js';
 import { useApp } from '../context.js';
 import { SectionLabel, Notice } from './shared.jsx';
-import { GenreBars, GenreDonut, ActivityLine, fmtHours } from './Charts.jsx';
+import { GenreBars, GenreDonut, ActivityLine, fmtHours, paletteFor } from './Charts.jsx';
 
 function TitleList({ items, caption }) {
   if (!items || items.length === 0) return <Notice>Nothing attributed here yet.</Notice>;
@@ -82,28 +83,66 @@ export default function StatsModal() {
     return () => { alive = false; };
   }, []);
 
-  /* fillDone in deps: recompute after the backfill lands */
-  const all = Store.genreMinutes(false);
-  const primary = Store.genreMinutes(true);
-  const months = Store.monthlyMinutes();
+  /* v2.9.0: the heavy store reads are memoised on the store revision (and
+     fillDone, which bumps once the genre backfill lands) so drill-down
+     clicks do not re-scan a 2k-title library. Same getRev() pattern the
+     Shows tab adopted in v2.8.2. */
+  const rev = Store.getRev();
+  const data = useMemo(() => ({
+    all: Store.genreMinutes(false),
+    primary: Store.genreMinutes(true),
+    months: Store.monthlyMinutes(),
+    st: Store.stats(),
+    top: Store.topTitles(),
+    watchedShows: Store.watchedShowCount()
+  }), [rev, fillDone]);
+  const { all, primary, months, st, top, watchedShows } = data;
   const hasAny = all.total > 0;
-  void fillDone;
 
   const covered = all.total - all.unattributed;
   const coverage = all.total ? Math.round((covered / all.total) * 100) : 0;
 
+  /* Headline number: total watch time, TV plus film. This is the same
+     rewatch-weighted, estimate-inclusive figure insightsQA reports as
+     "total watch time" and the charts sum to; it is only shown BIGGER
+     here. The "≈" and the caveat line below keep it honest even in a
+     cropped screenshot. */
+  const totalMin = st.tvMinutes + st.movieMinutes;
+  const totalHours = Math.round(totalMin / 60);
+  const span = fmtTvTime(totalMin);
+  const spanBits = [];
+  if (span.months) spanBits.push(span.months + (span.months === 1 ? ' month' : ' months'));
+  if (span.days) spanBits.push(span.days + (span.days === 1 ? ' day' : ' days'));
+  const spanLine = spanBits.length ? '≈ ' + spanBits.join(', ') + ' of TV and film' : 'of TV and film';
+
+  const topGenre = all.rows[0] || null;
+  const tiles = [
+    { key: 'eps', num: fmtNumber(st.episodes), label: st.episodes === 1 ? 'episode' : 'episodes' },
+    { key: 'shows', num: fmtNumber(watchedShows), label: watchedShows === 1 ? 'show' : 'shows' },
+    { key: 'films', num: fmtNumber(st.moviesWatched), label: st.moviesWatched === 1 ? 'film' : 'films' },
+    { key: 'genre', num: topGenre ? topGenre.genre : '—', label: 'top genre', small: true }
+  ];
+
   return (
     <>
-      {/* v2.6.0: restyled after an owner-reported light-mode bug. The
-          old --plain hero kept .modal__hero's on-media (near-white)
-          text on a light surface, so the title merged into the
-          background. This variant colours with theme ink over an
-          accent gradient, so it reads in BOTH themes by construction. */}
+      {/* v2.6.0: restyled after an owner-reported light-mode bug, then
+          v2.9.0 turned the hero into the headline number. The accent ink
+          comes from --link, which is theme-tuned (bright amber in dark, a
+          dark gold in light) so the big figure reads in BOTH themes. */}
       <div className="modal__hero modal__hero--stats">
         <button className="modal__close" onClick={closeModal} aria-label="Close">✕</button>
         <div className="stats-hero__eyebrow">YOUR LIBRARY IN NUMBERS</div>
-        <h2 className="modal__title">📊 Your stats</h2>
-        <div className="modal__meta">Tap a bar, a slice or a point on the line to see the titles behind it.</div>
+        {hasAny ? (
+          <>
+            <div className="stats-hero__big">
+              <span className="stats-hero__figure">{fmtNumber(totalHours)}</span>
+              <span className="stats-hero__unit">hours watched</span>
+            </div>
+            <div className="stats-hero__sub">{spanLine}</div>
+          </>
+        ) : (
+          <h2 className="modal__title">📊 Your stats</h2>
+        )}
       </div>
 
       <div className="modal__sections">
@@ -115,6 +154,33 @@ export default function StatsModal() {
           <Notice>No watch time logged yet. Charts appear once something is watched.</Notice>
         ) : (
           <>
+            <div className="stats-tiles">
+              {tiles.map((tile, i) => (
+                <div className="stats-tile" key={tile.key} style={{ '--tile': paletteFor(i) }}>
+                  <div className={'stats-tile__num' + (tile.small ? ' stats-tile__num--sm' : '')}>{tile.num}</div>
+                  <div className="stats-tile__label">{tile.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {top.show && (
+              <div className="n1-card">
+                <div className="n1-card__eyebrow">YOUR NUMBER ONE</div>
+                <div className="n1-card__body">
+                  {top.show.poster
+                    ? <img className="n1-card__poster" src={TMDB.img(top.show.poster, 'w185')} alt="" />
+                    : <div className="n1-card__poster n1-card__poster--none">{(top.show.title || '?').slice(0, 1).toUpperCase()}</div>}
+                  <div className="n1-card__meta">
+                    <div className="n1-card__name">{top.show.title}</div>
+                    <div className="n1-card__stat">{fmtHours(top.show.minutes)}{top.show.rewatch > 1 ? <span className="chip chip--rewatch">×{top.show.rewatch}</span> : null}</div>
+                    <div className="n1-card__sub">{fmtNumber(top.show.episodes)} {top.show.episodes === 1 ? 'episode' : 'episodes'} watched</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="fineprint fineprint--slab">Totals include rewatch counts and estimate runtime where TMDB has none, so the headline is a close approximation. Tap any bar, slice or point below to see the titles behind a number.</div>
+
             {all.rows.length > 0 && (
               <div className="chart-card">
                 <div className="chart-card__title">Hours by genre</div>

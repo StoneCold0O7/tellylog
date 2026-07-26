@@ -376,6 +376,52 @@ export function stats() {
   };
 }
 
+/* v2.9.0: the "your number one" headline card. Both the show and the
+   film are ranked by rewatch-weighted watched MINUTES, the same time
+   basis the genre charts and the headline totals use, so "your number
+   one" means the title you spent the most time with. This is a
+   deliberately different ranking from insightsQA's top-film answer
+   (rewatch, then rating, then recency = "favourite film"), which stays
+   as it is; time-spent is the honest basis for a stat sitting next to
+   an hours figure. Shows need a ticked episode, films need watchedAt.
+   Returns nulls for an empty library so the caller can hide the card. */
+export function topTitles() {
+  var topShow = null;
+  Object.keys(state.shows).forEach(function (id) {
+    var sh = state.shows[id];
+    var c = watchedCount(sh);
+    if (c === 0) return;
+    var minutes = showMinutes(sh);
+    if (!topShow || minutes > topShow.minutes) {
+      topShow = { kind: 'tv', id: sh.id, title: sh.name, poster: sh.poster || '', minutes: minutes, episodes: c, rewatch: rewatchOf(sh) };
+    }
+  });
+  var topFilm = null;
+  Object.keys(state.movies).forEach(function (id) {
+    var mv = state.movies[id];
+    if (!mv.watchedAt) return;
+    var minutes = (mv.runtime || 100) * rewatchOf(mv);
+    if (!topFilm || minutes > topFilm.minutes) {
+      topFilm = { kind: 'movie', id: mv.id, title: mv.title, poster: mv.poster || '', minutes: minutes, rewatch: rewatchOf(mv) };
+    }
+  });
+  return { show: topShow, film: topFilm };
+}
+
+/* v2.9.0: shows with at least one ticked episode, for the headline
+   "shows watched" tile. stats().shows counts every TRACKED show,
+   watchlisted-not-started and archived included, which would inflate a
+   Wrapped-style "shows you watched" number. This counts only genuine
+   watches. (showProgressList already computes the same set; this is the
+   cheap count-only path the headline needs.) */
+export function watchedShowCount() {
+  var n = 0;
+  Object.keys(state.shows).forEach(function (id) {
+    if (watchedCount(state.shows[id]) > 0) n++;
+  });
+  return n;
+}
+
 /* ---------- Movies ---------- */
 function movieFromDetails(d) {
   return {

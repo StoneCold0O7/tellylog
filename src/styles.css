@@ -985,6 +985,68 @@ a.provider--link:hover .provider__kind { color: var(--ink); }
   letter-spacing: 0.14em; color: var(--muted); margin-bottom: 6px;
 }
 
+/* ---------- v2.9.0: stats headline slab (Wrapped-style) ----------
+   Bold from SCALE and TYPE, not from saturated chrome. The big figure
+   uses --link (theme-tuned amber: bright in dark, dark gold in light)
+   so it reads in both themes; the tiles carry colour as soft PALETTE
+   tints with the number darkened toward black in light mode for
+   contrast. The v2.6.0 light-mode hero bug is the reason this is all
+   theme-aware by construction rather than a single fixed colour. */
+.stats-hero__big { display: flex; align-items: baseline; gap: 10px; margin-top: 2px; flex-wrap: wrap; }
+.stats-hero__figure {
+  font-family: var(--font-display); font-weight: 800; font-size: 52px;
+  line-height: 1; color: var(--link); letter-spacing: -0.01em;
+}
+.stats-hero__unit {
+  font-weight: 700; font-size: 14px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.stats-hero__sub { margin-top: 6px; font-size: 14px; color: var(--muted); }
+
+.stats-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0 12px; }
+.stats-tile {
+  background: color-mix(in srgb, var(--tile) 15%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--tile) 30%, var(--line));
+  border-radius: 14px; padding: 14px 14px 12px; min-width: 0;
+}
+.stats-tile__num {
+  font-family: var(--font-display); font-weight: 800; font-size: 32px;
+  line-height: 1.05; color: var(--tile);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.stats-tile__num--sm { font-size: 20px; }
+.stats-tile__label {
+  margin-top: 6px; font-size: 12px; font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted);
+}
+[data-theme="light"] .stats-tile__num { color: color-mix(in srgb, var(--tile) 50%, #000); }
+
+.n1-card {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; padding: 14px; margin: 0 0 12px;
+}
+.n1-card__eyebrow {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.14em; color: var(--muted); margin-bottom: 10px;
+}
+.n1-card__body { display: flex; gap: 14px; align-items: center; }
+.n1-card__poster {
+  width: 64px; height: 96px; border-radius: 8px; object-fit: cover;
+  flex: 0 0 auto; background: var(--surface-2);
+}
+.n1-card__poster--none {
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-weight: 800; font-size: 30px; color: var(--muted);
+}
+.n1-card__meta { min-width: 0; }
+.n1-card__name { font-family: var(--font-display); font-weight: 800; font-size: 20px; line-height: 1.15; }
+.n1-card__stat {
+  margin-top: 4px; font-family: var(--font-mono); font-weight: 700;
+  font-size: 18px; color: var(--link); display: flex; align-items: center;
+}
+.n1-card__sub { margin-top: 2px; font-size: 13px; color: var(--muted); }
+.fineprint--slab { margin-top: 0; margin-bottom: 14px; }
+
 .chip--rewatch {
   background: var(--accent-soft); color: var(--ink);
   font-family: var(--font-mono); font-weight: 700; font-size: 11px;

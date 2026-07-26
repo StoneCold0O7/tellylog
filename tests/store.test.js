@@ -818,4 +818,40 @@ t('nudgePick resumes once that episode is inside the window', () => {
   assert.strictEqual(pick.remaining, 1);
 });
 
+/* v2.9.0: headline "your number one" selector and the watched-show count
+   for the stats redesign. topTitles ranks by rewatch-weighted minutes;
+   watchedShowCount excludes saved-not-started shows that stats().shows
+   would otherwise inflate. */
+t('topTitles ranks show and film by rewatch-weighted minutes; watchedShowCount excludes unwatched', () => {
+  Store.clearAll();
+  Store.addShow(fakeDetails(200, 'SixtyMin', { 1: 10 }, 60));   // 10 * 60 * 1 = 600
+  for (let e = 1; e <= 10; e++) Store.markEpisode(200, 1, e, true, 1000 + e);
+  Store.addShow(fakeDetails(201, 'Rewatched', { 1: 10 }, 40));  // 6 * 40 * 3 = 720
+  for (let e = 1; e <= 6; e++) Store.markEpisode(201, 1, e, true, 2000 + e);
+  Store.setRewatchCount('tv', 201, 3);
+  Store.addShowToWatchlist(fakeDetails(202, 'Saved', { 1: 5 }, 30)); // 0 watched, must not count
+  Store.addMovie({ id: 210, title: 'LongFilm', runtime: 120, genres: [], release_date: '2020-01-01' });
+  Store.setMovieWatched(210, true);                            // 120
+  Store.addMovie({ id: 211, title: 'RewatchFilm', runtime: 100, genres: [], release_date: '2020-01-01' });
+  Store.setMovieWatched(211, true);
+  Store.setRewatchCount('movie', 211, 2);                      // 100 * 2 = 200, wins on rewatch weight
+
+  const top = Store.topTitles();
+  assert.strictEqual(top.show.id, 201);
+  assert.strictEqual(top.show.minutes, 720);
+  assert.strictEqual(top.show.episodes, 6);
+  assert.strictEqual(top.show.rewatch, 3);
+  assert.strictEqual(top.film.id, 211);
+  assert.strictEqual(top.film.minutes, 200);
+  assert.strictEqual(Store.watchedShowCount(), 2);             // saved-not-started excluded
+});
+
+t('topTitles returns nulls on an empty library', () => {
+  Store.clearAll();
+  const top = Store.topTitles();
+  assert.strictEqual(top.show, null);
+  assert.strictEqual(top.film, null);
+  assert.strictEqual(Store.watchedShowCount(), 0);
+});
+
 console.log('\nAll ' + passed + ' tests passed.');
