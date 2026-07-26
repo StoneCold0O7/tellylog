@@ -129,6 +129,7 @@ export function ActivityLine({ months, selectedKey, onSelect }) {
   const pts = months.map((m, i) => x(i) + ',' + y(m.minutes)).join(' ');
   const area = padL + ',' + (padT + innerH) + ' ' + pts + ' ' + (padL + innerW) + ',' + (padT + innerH);
   const every = Math.max(1, Math.ceil(months.length / 7));
+  const band = innerW / Math.max(1, months.length - 1);
   function label(key) {
     const p = key.split('-');
     return ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][Number(p[1])] + ' ' + p[0].slice(2);
@@ -153,19 +154,27 @@ export function ActivityLine({ months, selectedKey, onSelect }) {
       {months.map((m, i) => (i % every === 0 ? (
         <text key={m.key} x={x(i)} y={h - 8} textAnchor="middle" className="chart-label chart-label--sm">{label(m.key)}</text>
       ) : null))}
-      {months.map((m, i) => (
-        <g key={'pt' + m.key}>
-          {/* generous invisible hit area so fingers can land on it */}
-          <circle cx={x(i)} cy={y(m.minutes)} r="12" fill="transparent" className="chart-hit"
+      {months.map((m, i) => (m.minutes > 0 ? (
+        <circle key={'pt' + m.key} cx={x(i)} cy={y(m.minutes)} r={active === m.key ? 5 : 3}
+          className={'chart-dot' + (selectedKey === m.key ? ' chart-dot--on' : '')} />
+      ) : null))}
+      {/* v2.7.9, owner-reported: the hit area used to be a 12px circle on
+          the dot itself, so selecting a month meant landing on a moving
+          target a few pixels wide. Each month now owns a full-height
+          column, so a tap anywhere in its vertical band selects it. Drawn
+          last so it sits above the line and dots for pointer events. */}
+      {months.map((m, i) => {
+        const cx = x(i);
+        const left = Math.max(padL, cx - band / 2);
+        const right = Math.min(padL + innerW, cx + band / 2);
+        return (
+          <rect key={'hit' + m.key} x={left} y={padT} width={Math.max(1, right - left)} height={innerH}
+            fill="transparent" className="chart-hit"
             onClick={() => onSelect && onSelect(selectedKey === m.key ? null : m.key)}
             onMouseEnter={() => setHover(m.key)}
             onMouseLeave={() => setHover(null)} />
-          {m.minutes > 0 && (
-            <circle cx={x(i)} cy={y(m.minutes)} r={active === m.key ? 5 : 3}
-              className={'chart-dot' + (selectedKey === m.key ? ' chart-dot--on' : '')} />
-          )}
-        </g>
-      ))}
+        );
+      })}
     </svg>
   );
 }

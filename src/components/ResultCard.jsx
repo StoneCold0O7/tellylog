@@ -9,7 +9,7 @@ import { useApp } from '../context.js';
 import { Poster } from './shared.jsx';
 
 export default function ResultCard({ item, onAdded }) {
-  const { toast, openPreview } = useApp();
+  const { toast, openPreview, openShow } = useApp();
   const [busy, setBusy] = useState(false);
   const isTV = item.media_type === 'tv' || item.first_air_date !== undefined;
   const id = item.id;
@@ -17,6 +17,15 @@ export default function ResultCard({ item, onAdded }) {
   const year = ((isTV ? item.first_air_date : item.release_date) || '').slice(0, 4);
   const st = Store.get();
   const tracked = isTV ? !!st.shows[id] : !!st.movies[id];
+  /* v2.7.9, owner-reported: a show you already track opened the PREVIEW,
+     whose only action was "Open in your tracker", so reaching your own
+     episode list took two taps for no reason. Tracked shows now go
+     straight there. The preview still guards untracked titles, which is
+     the Phase 1.6 decision: peeking must never silently add to a library.
+     A saved-but-unstarted show keeps the preview, because that is where
+     "Start watching" lives. */
+  const sh = isTV ? st.shows[id] : null;
+  const openTrackerDirect = !!sh && !(sh.watchlist && Store.watchedCount(sh) === 0);
 
   function add() {
     setBusy(true);
@@ -46,7 +55,7 @@ export default function ResultCard({ item, onAdded }) {
           : <button className="add-btn" onClick={add} disabled={busy} aria-label="Add">＋</button>}
       </div>
       <div className="card__body">
-        <button className="card__title title-link" onClick={() => openPreview(isTV ? 'tv' : 'movie', id)}>
+        <button className="card__title title-link" onClick={() => (openTrackerDirect ? openShow(id) : openPreview(isTV ? 'tv' : 'movie', id))}>
           {title || ''}<span className="title-link__chev" aria-hidden="true">›</span>
         </button>
         <div className="card__meta">{isTV ? 'TV' : 'Film'}{year ? ' • ' + year : ''}</div>

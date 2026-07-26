@@ -86,9 +86,13 @@ describe('StatsModal drill-downs (v2.5.0)', () => {
     Store.get().shows[3].watched[1].push(3);
     const el = await mount(<StatsModal />);
     expect(el.textContent).toContain('Watch activity by month');
-    const dots = el.querySelectorAll('circle.chart-hit');
-    expect(dots.length).toBeGreaterThan(1);
-    await act(async () => { dots[0].dispatchEvent(new MouseEvent('click', { bubbles: true })); });
+    /* v2.7.9: the month hit target is a full-height column rect, not a
+       12px circle on the dot. Selecting a month no longer means landing
+       on a few pixels. Guard that the old circle target is gone. */
+    const hits = el.querySelectorAll('rect.chart-hit');
+    expect(hits.length).toBeGreaterThan(1);
+    expect(el.querySelectorAll('circle.chart-hit').length).toBe(0);
+    await act(async () => { hits[0].dispatchEvent(new MouseEvent('click', { bubbles: true })); });
     expect(el.textContent).toContain('Logged in 2025-01');
     expect(el.textContent).toContain('Timed');
   });

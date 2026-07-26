@@ -77,6 +77,19 @@ export default function TitleModal({ media, id }) {
     }).catch(() => { setBusy(false); toast('Could not add that film.'); });
   }
 
+  /* v2.7.9, owner-reported: a film you have ALREADY seen could only be
+     recorded by adding it to the watchlist and then toggling it watched.
+     Both destinations are now offered up front. */
+  function addMovieWatched() {
+    setBusy(true);
+    TMDB.movieDetails(id).then((d) => {
+      Store.addMovie(d);
+      Store.setMovieWatched(id, true);
+      setBusy(false);
+      toast('Marked ' + d.title + ' as watched');
+    }).catch(() => { setBusy(false); toast('Could not add that film.'); });
+  }
+
   const title = details ? (isTV ? details.name : details.title) : '';
   const backdrop = details && details.backdrop_path ? TMDB.img(details.backdrop_path, 'w780') : '';
   const rating = details && details.vote_average ? details.vote_average.toFixed(1) : '';
@@ -133,7 +146,10 @@ export default function TitleModal({ media, id }) {
               <button className="btn btn--tiny btn--danger" onClick={() => { Store.removeMovie(id); toast('Removed.'); closeModal(); }}>Remove</button>
             </>
           ) : (
-            <button className="btn btn--tiny btn--primary" onClick={addMovie} disabled={busy}>{busy ? '…' : 'Add to watchlist'}</button>
+            <>
+              <button className="btn btn--tiny btn--primary" onClick={addMovie} disabled={busy}>{busy ? '…' : 'Add to watchlist'}</button>
+              <button className="btn btn--tiny" onClick={addMovieWatched} disabled={busy}>{busy ? '…' : 'Already watched'}</button>
+            </>
           )
         )}
       </div>

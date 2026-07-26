@@ -237,6 +237,30 @@ export function remainingCount(sh) {
   return Math.max(0, totalEpisodes(sh) - watchedCount(sh));
 }
 
+/* v2.7.9, owner-reported: TMDB's per-season episode_count counts episodes
+   that have NOT aired yet, so nextEpisodeFor happily returns an episode
+   weeks in the future and the queue treated it as watchable (a series
+   premiering in 20 days sat in UP NEXT). An episode earns a place in the
+   queue only once it has aired, or is about to, within UPCOMING_DAYS.
+   Anything further out belongs on the Upcoming tab, which is what that tab
+   is for. Shows with no scheduled next episode are unaffected: everything
+   in their season map has already aired. Unparseable dates fail OPEN, so
+   bad metadata can never empty someone's queue. */
+export var UPCOMING_DAYS = 7;
+
+export function nextEpisodeReady(sh, next, now) {
+  if (!next) return false;
+  var ne = sh.nextEp;
+  if (!ne || !ne.airDate) return true;
+  /* Earlier than the next-to-air episode, so it is already out. */
+  if (next.s < ne.s || (next.s === ne.s && next.e < ne.e)) return true;
+  /* Past the next-to-air episode, so it is further out still. */
+  if (next.s !== ne.s || next.e !== ne.e) return false;
+  var t = Date.parse(ne.airDate + 'T00:00:00Z');
+  if (isNaN(t)) return true;
+  return (t - (now || Date.now())) <= UPCOMING_DAYS * U.DAY_MS;
+}
+
 /* ---------- Selectors ---------- */
 
 var STALE_DAYS = 30;
@@ -253,6 +277,8 @@ export function watchNextList() {
     if (sh.watchlist && watchedCount(sh) === 0) return;
     var next = nextEpisodeFor(sh);
     if (!next) return;
+    /* v2.7.9: unaired episodes are not "up next". See nextEpisodeReady. */
+    if (!nextEpisodeReady(sh, next, now)) return;
     var entry = { show: sh, next: next, remaining: remainingCount(sh) };
     var activity = Math.max(sh.lastWatchedAt || 0, sh.keptAt || 0);
     var last = activity || sh.added;
@@ -435,6 +461,7 @@ export function importMovieToWatchlist(details) {
    (3 or fewer episodes left). excludeId lets the UI skip the show the
    Tonight card already features. */
 export function nudgePick(excludeId) {
+  var now = Date.now();
   var best = null;
   Object.keys(state.shows).forEach(function (id) {
     var sh = state.shows[id];
@@ -443,6 +470,9 @@ export function nudgePick(excludeId) {
     if (watchedCount(sh) === 0) return;
     var rem = remainingCount(sh);
     if (rem < 1 || rem > 3) return;
+    /* v2.7.9: same unaired-episode rule as the queue. Nudging someone to
+       finish a show whose last episode airs in three weeks is a lie. */
+    if (!nextEpisodeReady(sh, nextEpisodeFor(sh), now)) return;
     if (!best || rem < best.remaining) best = { show: sh, remaining: rem };
   });
   return best;

@@ -745,4 +745,77 @@ t('ownsTitle: true for tracked, watchlisted and archived titles in both media, f
   assert.strictEqual(Store.ownsTitle('movie', 84), false); // a show id is not a film id
 });
 
+/* v2.7.9: unaired episodes must not sit in the queue. TMDB's per-season
+   episode_count includes episodes that have not aired, which is how a
+   series premiering in 20 days ended up in UP NEXT. */
+const DAY_MS = 24 * 60 * 60 * 1000;
+function iso(offsetDays) {
+  return new Date(Date.now() + offsetDays * DAY_MS).toISOString().slice(0, 10);
+}
+function fakeAiring(id, name, seasonCounts, runtime, next) {
+  const d = fakeDetails(id, name, seasonCounts, runtime);
+  if (next) {
+    d.next_episode_to_air = {
+      season_number: next.s, episode_number: next.e,
+      name: 'Upcoming', air_date: next.airDate
+    };
+  }
+  return d;
+}
+
+t('watchNextList drops a show whose next episode airs beyond the 7-day window', () => {
+  Store.clearAll();
+  Store.addShow(fakeAiring(90, 'Premiering Soon', { 1: 8 }, 45, { s: 1, e: 1, airDate: iso(20) }));
+  assert.strictEqual(Store.watchNextList().next.length, 0);
+});
+
+t('watchNextList keeps a show whose next episode airs within 7 days', () => {
+  Store.clearAll();
+  Store.addShow(fakeAiring(91, 'Airing This Week', { 1: 8 }, 45, { s: 1, e: 1, airDate: iso(3) }));
+  const lists = Store.watchNextList();
+  assert.strictEqual(lists.next.length, 1);
+  assert.strictEqual(lists.next[0].show.id, 91);
+});
+
+t('watchNextList keeps already-aired backlog even when a later episode is far out', () => {
+  Store.clearAll();
+  /* Nothing watched, so the next unwatched episode is S01E01, which aired
+     long ago; the SCHEDULED episode is S01E09, still weeks away. */
+  Store.addShow(fakeAiring(92, 'Mid Season', { 1: 10 }, 45, { s: 1, e: 9, airDate: iso(20) }));
+  const lists = Store.watchNextList();
+  assert.strictEqual(lists.next.length, 1);
+  assert.deepStrictEqual(lists.next[0].next, { s: 1, e: 1 });
+});
+
+t('shows with no scheduled episode are unaffected (old backups keep working)', () => {
+  Store.clearAll();
+  Store.addShow(fakeDetails(93, 'Finished', { 1: 6 }, 30));
+  assert.strictEqual(Store.watchNextList().next.length, 1);
+});
+
+t('nextEpisodeReady fails open on an unparseable air date', () => {
+  Store.clearAll();
+  Store.addShow(fakeAiring(94, 'Bad Metadata', { 1: 4 }, 30, { s: 1, e: 1, airDate: 'not-a-date' }));
+  assert.strictEqual(Store.watchNextList().next.length, 1);
+});
+
+t('nudgePick will not nudge toward an episode that has not aired', () => {
+  Store.clearAll();
+  Store.addShow(fakeAiring(95, 'One Left', { 1: 3 }, 30, { s: 1, e: 3, airDate: iso(20) }));
+  Store.markEpisode(95, 1, 1, true, Date.now());
+  Store.markEpisode(95, 1, 2, true, Date.now());
+  assert.strictEqual(Store.remainingCount(Store.get().shows[95]), 1);
+  assert.strictEqual(Store.nudgePick(null), null);
+});
+
+t('nudgePick resumes once that episode is inside the window', () => {
+  Store.clearAll();
+  Store.addShow(fakeAiring(96, 'Finale Friday', { 1: 3 }, 30, { s: 1, e: 3, airDate: iso(2) }));
+  Store.markEpisode(96, 1, 1, true, Date.now());
+  Store.markEpisode(96, 1, 2, true, Date.now());
+  const pick = Store.nudgePick(null);
+  assert.ok(pick && pick.show.id === 96);
+  assert.strictEqual(pick.remaining, 1);
+});
+
 console.log('\nAll ' + passed + ' tests passed.');
