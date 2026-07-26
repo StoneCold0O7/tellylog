@@ -31,11 +31,12 @@ function touch(el, type, x, y) {
 
 function surfaceOf(el) { return el.querySelector('.swipe__surface'); }
 
-/* v2.8.1: a committed swipe lifts and fades for 150ms before the toggle
-   fires, so the episode reads as travelling up into the history. Tests
-   that assert the toggle must let that beat elapse. */
+/* v2.8.1: a committed swipe lifts and fades before the toggle fires, so
+   the episode reads as travelling up into the history. Tests that assert
+   the toggle must let that beat elapse. v2.8.2 stretched the beat from
+   150ms to 300ms on the owner's request, so the wait grew with it. */
 async function settle() {
-  await act(async () => { await new Promise((r) => setTimeout(r, 220)); });
+  await act(async () => { await new Promise((r) => setTimeout(r, 400)); });
 }
 
 function drag(el, from, to, steps) {

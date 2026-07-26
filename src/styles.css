@@ -1071,9 +1071,17 @@ html, body { overscroll-behavior-y: contain; }
 .swipe__action--right { justify-content: flex-end; }
 .swipe__action--armed { background: var(--accent); color: var(--accent-ink); }
 
+/* v2.8.2: the pull moves the whole tab with a transform instead of
+   growing a spacer's height. Height is a layout property, so the old
+   version reflowed the page on every frame of the gesture; transform and
+   opacity are composited, so this one does not touch layout at all. */
+.pullzone { position: relative; }
+.pullzone--settle { transition: transform .22s ease; }
 .pullhint {
-  overflow: hidden; display: flex; align-items: center; justify-content: center;
-  transition: height .16s ease;
+  position: absolute; left: 0; right: 0; bottom: 100%;
+  height: 56px; display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+  opacity: 0;  /* parked above the tab; the gesture fades it in */
 }
 .pullhint__label {
   font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em;
@@ -1095,15 +1103,33 @@ html, body { overscroll-behavior-y: contain; }
 .histtop__handle:hover { color: var(--ink); border-color: var(--accent-soft); }
 .histtop__chev { transition: transform .18s ease; display: inline-block; }
 .histtop__chev--open { transform: rotate(180deg); }
-.histtop__panel { animation: hist-drop .2s ease both; margin-bottom: 18px; }
+/* padding, not margin: the auto-condense subtracts offsetHeight from the
+   scroll position, and offsetHeight does not include margin, so a margin
+   here would leave the page short by exactly that much and everything on
+   screen would creep. overflow-anchor is off for the same reason in
+   reverse: the browser's own anchoring would apply a SECOND correction
+   on top of the one the component makes. */
+.histtop__panel { animation: hist-drop .2s ease both; padding-bottom: 18px; overflow-anchor: none; }
 @keyframes hist-drop {
   from { opacity: 0; transform: translateY(-8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+/* v2.8.2: the tap route to the next fifteen, at the old end of the list */
+.histtop__morerow { display: flex; justify-content: center; margin: 2px 0 10px; }
+.histtop__more {
+  padding: 5px 14px; border-radius: 999px;
+  background: var(--surface); border: 1px dashed var(--line);
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em;
+  color: var(--muted); cursor: pointer;
+}
+.histtop__more:hover { color: var(--ink); border-color: var(--accent); }
+.section-row--histfoot { margin-top: 6px; }
 
 /* A committed swipe lifts and fades, so the episode reads as travelling
-   up into the history rather than simply disappearing. */
-.swipe__surface--fly { animation: swipe-fly .16s ease forwards; }
+   up into the history rather than simply disappearing. v2.8.2 stretched
+   it from .16s to .30s on the owner's request; the JS delay in
+   shared.jsx (SWIPE_FLY_MS) must stay identical to this number. */
+.swipe__surface--fly { animation: swipe-fly .30s ease forwards; }
 @keyframes swipe-fly {
   from { opacity: 1; transform: translateY(0); }
   to   { opacity: .15; transform: translateY(-14px); }
@@ -1114,7 +1140,7 @@ html, body { overscroll-behavior-y: contain; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .swipe__surface--settle, .pullhint, .swipe__action, .pullhint__label { transition: none; }
+  .swipe__surface--settle, .pullzone--settle, .swipe__action, .pullhint__label { transition: none; }
 }
 
 /* Add-to-phone: the persistent tag on Shows and Films that opens the

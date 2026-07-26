@@ -135,6 +135,14 @@ export function CheckBtn({ checked, small, onClick, disabled }) {
    exactly as before; this is additive, never the only way in. */
 const SWIPE_COMMIT = 72;   // px of travel that counts as a decision
 const SWIPE_MAX = 96;      // visual travel cap
+/* v2.8.2, owner request: the lift-and-fade at 150ms was too quick to
+   read, so the row vanished rather than visibly travelling up into the
+   history. Doubled to 300ms, which is about the ceiling before the
+   delayed tick starts reading as lag instead of as motion.
+   MUST match the swipe-fly animation duration in styles.css: the CSS
+   holds the row lifted, and if the JS fires first the row snaps back to
+   full opacity for a frame before it changes state. */
+const SWIPE_FLY_MS = 300;
 
 export function SwipeRow({ checked, onToggle, children }) {
   const [dx, setDx] = useState(0);
@@ -191,7 +199,7 @@ export function SwipeRow({ checked, onToggle, children }) {
          cannot fire into a dead component. */
       setFlying(true);
       clearTimeout(flyTimer.current);
-      flyTimer.current = setTimeout(() => { setFlying(false); onToggle(); }, 150);
+      flyTimer.current = setTimeout(() => { setFlying(false); onToggle(); }, SWIPE_FLY_MS);
     }
     start.current = null;
     axis.current = null;
