@@ -148,6 +148,10 @@ export function SwipeRow({ checked, onToggle, children }) {
      read would still see 0, silently dropping the gesture. Caught in a
      real browser; jsdom hid it because act() flushes between events. */
   const dxRef = useRef(0);
+  const [flying, setFlying] = useState(false);
+  const flyTimer = useRef(null);
+
+  useEffect(() => () => clearTimeout(flyTimer.current), []);
 
   function setDelta(v) { dxRef.current = v; setDx(v); }
 
@@ -179,7 +183,15 @@ export function SwipeRow({ checked, onToggle, children }) {
   function onTouchEnd() {
     if (axis.current === 'x' && dxRef.current * dir >= SWIPE_COMMIT && onToggle) {
       swallowClick.current = true;
-      onToggle();
+      /* v2.8.1: a committed row lifts and fades before it changes state,
+         so you can see it travel up into the history at the top of the
+         tab rather than just vanishing. The toggle is held back by one
+         short beat: long enough to read as motion, short enough not to
+         read as lag. Cleared on unmount so a row that leaves mid-flight
+         cannot fire into a dead component. */
+      setFlying(true);
+      clearTimeout(flyTimer.current);
+      flyTimer.current = setTimeout(() => { setFlying(false); onToggle(); }, 150);
     }
     start.current = null;
     axis.current = null;
@@ -196,8 +208,8 @@ export function SwipeRow({ checked, onToggle, children }) {
         <span>{checked ? '↶ Undo' : '✓ Watched'}</span>
       </div>
       <div
-        className={'swipe__surface' + (dragging ? '' : ' swipe__surface--settle')}
-        style={dx ? { transform: 'translateX(' + dx + 'px)' } : undefined}
+        className={'swipe__surface' + (dragging ? '' : ' swipe__surface--settle') + (flying ? ' swipe__surface--fly' : '')}
+        style={dx && !flying ? { transform: 'translateX(' + dx + 'px)' } : undefined}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}

@@ -73,6 +73,13 @@ describe('App smoke', () => {
     expect(el.innerHTML).toContain('TONIGHT');
     expect(el.innerHTML).toContain('Alpha');
     expect(el.innerHTML).toContain('Mark watched');
+    /* v2.8.1: the history moved to the top behind a handle and is
+       collapsed by default, so the Tonight-first layout is unchanged.
+       Assert the handle, then that opening it reveals the history. */
+    const handle = el.querySelector('.histtop__handle');
+    expect(handle).toBeTruthy();
+    expect(el.innerHTML).not.toContain('WATCHED HISTORY');
+    await act(async () => { handle.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
     expect(el.innerHTML).toContain('WATCHED HISTORY');
   });
 
@@ -83,7 +90,9 @@ describe('App smoke', () => {
     expect(btn).toBeTruthy();
     act(() => { btn.click(); });
     expect(Store.get().shows[1].watched[1]).toContain(1);
-    expect(el.innerHTML).toContain('WATCHED HISTORY');
+    /* The tap still logs instantly; the history handle appears once there
+       is something in the history to show. */
+    expect(el.querySelector('.histtop__handle')).toBeTruthy();
   });
 
   it('reframes stale shows as Still watching? with one-tap Drop mapping to archive', async () => {

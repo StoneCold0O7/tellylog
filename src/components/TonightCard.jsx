@@ -8,7 +8,7 @@ import * as Store from '../lib/store.js';
 import * as TMDB from '../lib/tmdb.js';
 import * as U from '../lib/util.js';
 import { useApp } from '../context.js';
-import { useEpisodeMeta } from './shared.jsx';
+import { useEpisodeMeta, SwipeRow } from './shared.jsx';
 import { IconCheck } from './Icons.jsx';
 
 export default function TonightCard({ entry }) {
@@ -36,7 +36,11 @@ export default function TonightCard({ entry }) {
     toast('Logged ' + U.seLabel(s, e).replace(' | ', ' ') + ' of ' + sh.name);
   }
 
-  return (
+  /* v2.8.1, owner request: the hero gets the same swipe as the queue
+     rows, so the gesture is consistent everywhere an episode can be
+     ticked. The big Mark watched button stays, because a gesture must
+     never be the only way to do something. */
+  const card = (
     <section
       className={'tonight' + (bgOn ? ' tonight--bg-on' : '')}
       style={bg && bgOn ? { backgroundImage: "url('" + bg + "')" } : undefined}
@@ -58,4 +62,6 @@ export default function TonightCard({ entry }) {
       </div>
     </section>
   );
+
+  return <SwipeRow checked={false} onToggle={logIt}>{card}</SwipeRow>;
 }

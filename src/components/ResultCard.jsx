@@ -27,6 +27,30 @@ export default function ResultCard({ item, onAdded }) {
   const sh = isTV ? st.shows[id] : null;
   const openTrackerDirect = !!sh && !(sh.watchlist && Store.watchedCount(sh) === 0);
 
+  /* v2.8.1, owner-reported: the green tick was inert. Removing something
+     meant opening the title and finding Remove, which is a long way round
+     for undoing a mistap.
+
+     One guard the request did not ask for, added deliberately: for a show
+     with ticked episodes this deletes real watch history, and a one-tap
+     irreversible delete sitting where a mistap already happens is a data
+     loss waiting to happen. Untouched titles remove instantly; anything
+     carrying history asks first, naming what would be lost. Nothing that
+     took effort to record can disappear on a single tap. */
+  function untrack() {
+    if (isTV) {
+      const sh = Store.get().shows[id];
+      const seen = sh ? Store.watchedCount(sh) : 0;
+      if (seen > 0 && !window.confirm('Remove ' + (title || 'this show') + '?\n\n' + seen + ' watched episode' + (seen === 1 ? '' : 's') + ' will be deleted from your history. This cannot be undone.')) return;
+      Store.removeShow(id);
+    } else {
+      const mv = Store.get().movies[id];
+      if (mv && mv.watchedAt && !window.confirm('Remove ' + (title || 'this film') + '?\n\nIt will no longer count as watched.')) return;
+      Store.removeMovie(id);
+    }
+    toast('Removed ' + (title || 'title'));
+  }
+
   function add() {
     setBusy(true);
     if (isTV) {
@@ -51,7 +75,7 @@ export default function ResultCard({ item, onAdded }) {
       <div className="card__img">
         <Poster path={item.poster_path} alt={title} size="w342" />
         {tracked
-          ? <button className="add-btn add-btn--on" disabled aria-label="Already added">✓</button>
+          ? <button className="add-btn add-btn--on" onClick={untrack} aria-label={'Remove ' + (title || 'this title') + ' from your library'} title="Remove from your library">✓</button>
           : <button className="add-btn" onClick={add} disabled={busy} aria-label="Add">＋</button>}
       </div>
       <div className="card__body">

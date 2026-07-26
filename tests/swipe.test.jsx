@@ -31,6 +31,13 @@ function touch(el, type, x, y) {
 
 function surfaceOf(el) { return el.querySelector('.swipe__surface'); }
 
+/* v2.8.1: a committed swipe lifts and fades for 150ms before the toggle
+   fires, so the episode reads as travelling up into the history. Tests
+   that assert the toggle must let that beat elapse. */
+async function settle() {
+  await act(async () => { await new Promise((r) => setTimeout(r, 220)); });
+}
+
 function drag(el, from, to, steps) {
   const s = surfaceOf(el);
   touch(s, 'touchstart', from.x, from.y);
@@ -50,38 +57,44 @@ describe('SwipeRow', () => {
     expect(onToggle).not.toHaveBeenCalled();
   });
 
-  it('an unwatched row commits on a rightward swipe past the threshold', () => {
+  it('an unwatched row commits on a rightward swipe past the threshold', async () => {
     const onToggle = vi.fn();
     const el = mount(<SwipeRow checked={false} onToggle={onToggle}><article>Row</article></SwipeRow>);
     drag(el, { x: 40, y: 100 }, { x: 160, y: 104 });
+    expect(el.querySelector('.swipe__surface--fly')).toBeTruthy();  // lifts first
+    await settle();
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
-  it('ignores a short swipe that never reaches the commit threshold', () => {
+  it('ignores a short swipe that never reaches the commit threshold', async () => {
     const onToggle = vi.fn();
     const el = mount(<SwipeRow checked={false} onToggle={onToggle}><article>Row</article></SwipeRow>);
     drag(el, { x: 40, y: 100 }, { x: 80, y: 102 });   // 40px, under the 72px commit
+    await settle();
     expect(onToggle).not.toHaveBeenCalled();
   });
 
-  it('ignores a vertical drag, so scrolling never ticks an episode', () => {
+  it('ignores a vertical drag, so scrolling never ticks an episode', async () => {
     const onToggle = vi.fn();
     const el = mount(<SwipeRow checked={false} onToggle={onToggle}><article>Row</article></SwipeRow>);
     drag(el, { x: 40, y: 100 }, { x: 52, y: 260 });   // mostly vertical
+    await settle();
     expect(onToggle).not.toHaveBeenCalled();
   });
 
-  it('ignores a wrong-direction swipe: an unwatched row is not toggled by swiping left', () => {
+  it('ignores a wrong-direction swipe: an unwatched row is not toggled by swiping left', async () => {
     const onToggle = vi.fn();
     const el = mount(<SwipeRow checked={false} onToggle={onToggle}><article>Row</article></SwipeRow>);
     drag(el, { x: 200, y: 100 }, { x: 40, y: 104 });
+    await settle();
     expect(onToggle).not.toHaveBeenCalled();
   });
 
-  it('a watched row undoes on a leftward swipe, the mirror of completing', () => {
+  it('a watched row undoes on a leftward swipe, the mirror of completing', async () => {
     const onToggle = vi.fn();
     const el = mount(<SwipeRow checked onToggle={onToggle}><article>Row</article></SwipeRow>);
     drag(el, { x: 200, y: 100 }, { x: 40, y: 104 });
+    await settle();
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
 

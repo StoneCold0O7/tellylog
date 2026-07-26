@@ -88,19 +88,25 @@ export default function ShowsTab() {
   const hist = Store.history(20);
   const showCount = Object.keys(Store.get().shows).length;
 
-  /* v2.8.0, owner request: with a large library the keep/drop pile buries
-     the watch history and reaching it means scrolling forever. Pulling
-     down from the top of the tab jumps straight to it.
+  /* v2.8.1, owner correction: v2.8.0 made the pull SCROLL DOWN to the
+     history where it sat at the bottom of the tab. That was the wrong
+     reading of the request. The history now physically lives at the TOP
+     and the pull reveals it in place, so it comes down from above the
+     content instead of throwing you to the end of the page.
 
-     On the record: the audit recommended collapsing keep/drop behind a
-     button instead, matching the watchlist, stats and data surfaces, on
-     discoverability grounds. The owner chose the gesture. The label that
-     appears mid-pull is the mitigation for the discoverability objection.
+     It stays collapsed by default, which is what keeps the Tonight-first
+     layout from Phase 1 intact: the default view is unchanged, the
+     history is one gesture away rather than one long scroll away.
+
+     The handle above is a real button, not decoration. A gesture must
+     never be the only route to a feature, or the app becomes unusable
+     for anyone on a desktop, a keyboard or a screen reader.
+
      Listeners live on window rather than a wrapper element so the tab's
      layout is untouched, and they are passive because the gesture never
      needs to cancel a scroll; Android's own pull-to-refresh is held off
      by overscroll-behavior in CSS, not by preventDefault. */
-  const histRef = useRef(null);
+  const [histOpen, setHistOpen] = useState(false);
   const [pull, setPull] = useState(0);
   const PULL_COMMIT = 60;
   /* Travel is mirrored into a ref for the same reason the swipe row keeps
@@ -121,9 +127,7 @@ export default function ShowsTab() {
       setPullBoth(dy > 0 ? Math.min(110, dy * 0.5) : 0);
     };
     const te = () => {
-      if (pullRef.current >= PULL_COMMIT && histRef.current) {
-        histRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
+      if (pullRef.current >= PULL_COMMIT) setHistOpen(true);
       setPullBoth(0);
       startY = null;
     };
@@ -151,14 +155,62 @@ export default function ShowsTab() {
   const queue = lists.next.slice(1);
   const nudge = !nudgeDismissed ? Store.nudgePick(tonight ? tonight.show.id : null) : null;
 
+  const historyPanel = (
+    <>
+      {/* v2.7.2: the history gains a second lens. Episodes is the
+          existing as-watched stream; By show aggregates one row per
+          series with the accent progress bar, distinct episodes
+          ticked and completion percent (rewatches never inflate
+          it). Same seg pattern as the Profile toggles. */}
+      <div className="section-row">
+        <SectionLabel>WATCHED HISTORY</SectionLabel>
+        <div className="seg seg--mini" role="group" aria-label="History view">
+          <button className={'seg__opt' + (histView === 'episodes' ? ' seg__opt--on' : '')} onClick={() => setHistView('episodes')}>Episodes</button>
+          <button className={'seg__opt' + (histView === 'byshow' ? ' seg__opt--on' : '')} onClick={() => setHistView('byshow')}>By show</button>
+        </div>
+      </div>
+      {histView === 'episodes' ? hist.map((h, i) => (
+        <EpRow
+          key={h.show.id + '-' + h.s + '-' + h.e + '-' + i}
+          show={h.show} s={h.s} e={h.e} checked
+          onToggle={() => Store.markEpisode(h.show.id, h.s, h.e, false)}
+        />
+      )) : Store.showProgressList().map((p) => (
+        <article className="ep-row" key={'agg-' + p.show.id}>
+          <button className="ep-row__poster" onClick={() => openShow(p.show.id)}>
+            <Poster path={p.show.poster} alt={p.show.name} />
+          </button>
+          <div className="ep-row__body">
+            <button className="ep-row__title title-link" onClick={() => openShow(p.show.id)}>
+              {p.show.name}<span className="title-link__chev" aria-hidden="true">›</span>
+            </button>
+            <div className="progress progress--row"><div className="progress__bar" style={{ width: p.pct + '%' }}></div></div>
+            <div className="ep-row__meta">{p.seen} of {p.total || '?'} episodes · {p.pct}% complete{p.show.archived ? ' · archived' : ''}</div>
+          </div>
+        </article>
+      ))}
+    </>
+  );
+
   return (
     <>
       {hist.length > 0 && (
-        <div className="pullhint" style={{ height: pull }} aria-hidden="true">
-          <span className={'pullhint__label' + (pull >= PULL_COMMIT ? ' pullhint__label--armed' : '')}>
-            {pull >= PULL_COMMIT ? 'Release for your history' : 'Pull for your history'}
-          </span>
-        </div>
+        <>
+          <div className="pullhint" style={{ height: pull }} aria-hidden="true">
+            <span className={'pullhint__label' + (pull >= PULL_COMMIT ? ' pullhint__label--armed' : '')}>
+              {pull >= PULL_COMMIT ? 'Release for your history' : 'Pull for your history'}
+            </span>
+          </div>
+
+          <div className="histtop">
+            <button className="histtop__handle" onClick={() => setHistOpen(!histOpen)} aria-expanded={histOpen}>
+              <span className={'histtop__chev' + (histOpen ? ' histtop__chev--open' : '')} aria-hidden="true">▾</span>
+              {histOpen ? 'Hide history' : 'Watched history'}
+            </button>
+          </div>
+
+          {histOpen && <div className="histtop__panel">{historyPanel}</div>}
+        </>
       )}
 
       <div className="install-tagrow">
@@ -203,42 +255,9 @@ export default function ShowsTab() {
         </>
       )}
 
-      {hist.length > 0 && (
-        <>
-          {/* v2.7.2: the history gains a second lens. Episodes is the
-              existing as-watched stream; By show aggregates one row per
-              series with the accent progress bar, distinct episodes
-              ticked and completion percent (rewatches never inflate
-              it). Same seg pattern as the Profile toggles. */}
-          <div className="section-row" ref={histRef}>
-            <SectionLabel>WATCHED HISTORY</SectionLabel>
-            <div className="seg seg--mini" role="group" aria-label="History view">
-              <button className={'seg__opt' + (histView === 'episodes' ? ' seg__opt--on' : '')} onClick={() => setHistView('episodes')}>Episodes</button>
-              <button className={'seg__opt' + (histView === 'byshow' ? ' seg__opt--on' : '')} onClick={() => setHistView('byshow')}>By show</button>
-            </div>
-          </div>
-          {histView === 'episodes' ? hist.map((h, i) => (
-            <EpRow
-              key={h.show.id + '-' + h.s + '-' + h.e + '-' + i}
-              show={h.show} s={h.s} e={h.e} checked
-              onToggle={() => Store.markEpisode(h.show.id, h.s, h.e, false)}
-            />
-          )) : Store.showProgressList().map((p) => (
-            <article className="ep-row" key={'agg-' + p.show.id}>
-              <button className="ep-row__poster" onClick={() => openShow(p.show.id)}>
-                <Poster path={p.show.poster} alt={p.show.name} />
-              </button>
-              <div className="ep-row__body">
-                <button className="ep-row__title title-link" onClick={() => openShow(p.show.id)}>
-                  {p.show.name}<span className="title-link__chev" aria-hidden="true">›</span>
-                </button>
-                <div className="progress progress--row"><div className="progress__bar" style={{ width: p.pct + '%' }}></div></div>
-                <div className="ep-row__meta">{p.seen} of {p.total || '?'} episodes · {p.pct}% complete{p.show.archived ? ' · archived' : ''}</div>
-              </div>
-            </article>
-          ))}
-        </>
-      )}
+      {/* v2.8.1: the watched history used to sit here, at the bottom.
+          It now lives at the TOP behind the pull handle, so it is never
+          buried under a long keep/drop pile again. */}
 
       <ArchivedSection />
     </>

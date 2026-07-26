@@ -1082,6 +1082,37 @@ html, body { overscroll-behavior-y: contain; }
 }
 .pullhint__label--armed { color: var(--accent); }
 
+/* v2.8.1: the history lives at the TOP behind a handle that is both the
+   pull target and a real button, so the gesture is never the only route. */
+.histtop { display: flex; justify-content: center; margin: 0 0 6px; }
+.histtop__handle {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 14px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--line);
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em;
+  color: var(--muted); cursor: pointer;
+}
+.histtop__handle:hover { color: var(--ink); border-color: var(--accent-soft); }
+.histtop__chev { transition: transform .18s ease; display: inline-block; }
+.histtop__chev--open { transform: rotate(180deg); }
+.histtop__panel { animation: hist-drop .2s ease both; margin-bottom: 18px; }
+@keyframes hist-drop {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* A committed swipe lifts and fades, so the episode reads as travelling
+   up into the history rather than simply disappearing. */
+.swipe__surface--fly { animation: swipe-fly .16s ease forwards; }
+@keyframes swipe-fly {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: .15; transform: translateY(-14px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .histtop__chev, .histtop__panel, .swipe__surface--fly { transition: none; animation: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .swipe__surface--settle, .pullhint, .swipe__action, .pullhint__label { transition: none; }
 }
