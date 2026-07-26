@@ -1046,6 +1046,46 @@ a.provider--link:hover .provider__kind { color: var(--ink); }
 /* v2.7.1 profile library kind + view segments */
 .seg-pair { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 
+/* ---------- v2.8.0: swipe to tick, pull to reach history ---------- */
+
+/* Android Chrome's native pull-to-refresh would otherwise swallow the
+   pull gesture below. Containing overscroll is the CSS-level fix and
+   costs nothing else, since the app never relies on scroll chaining. */
+html, body { overscroll-behavior-y: contain; }
+
+.swipe { position: relative; overflow: hidden; border-radius: var(--radius-sm); }
+.swipe__surface {
+  position: relative; z-index: 1;
+  background: var(--bg);
+  /* the whole trick: browser keeps vertical panning, we get horizontal */
+  touch-action: pan-y;
+}
+.swipe__surface--settle { transition: transform .18s ease; }
+.swipe__action {
+  position: absolute; inset: 0; z-index: 0;
+  display: flex; align-items: center; padding: 0 20px;
+  font-size: 13px; font-weight: 700; letter-spacing: .04em;
+  color: var(--accent); background: var(--accent-soft);
+  transition: background .12s ease, color .12s ease;
+}
+.swipe__action--right { justify-content: flex-end; }
+.swipe__action--armed { background: var(--accent); color: var(--accent-ink); }
+
+.pullhint {
+  overflow: hidden; display: flex; align-items: center; justify-content: center;
+  transition: height .16s ease;
+}
+.pullhint__label {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em;
+  color: var(--muted); white-space: nowrap;
+  transition: color .12s ease;
+}
+.pullhint__label--armed { color: var(--accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .swipe__surface--settle, .pullhint, .swipe__action, .pullhint__label { transition: none; }
+}
+
 /* Add-to-phone: the persistent tag on Shows and Films that opens the
    install instructions, plus the instructions themselves in the modal. */
 .install-tagrow { margin: 2px 0 10px; }

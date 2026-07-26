@@ -3,7 +3,7 @@
    Phase 1.5: the episode cache now stores {name, overview, still,
    airDate} per episode, images fade in on load and skeletons replace
    the plain "Loading" strings. */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import * as TMDB from '../lib/tmdb.js';
 import * as U from '../lib/util.js';
 import { useApp } from '../context.js';
@@ -117,12 +117,104 @@ export function CheckBtn({ checked, small, onClick, disabled }) {
   );
 }
 
+/* v2.8.0: swipe an episode row to tick it off, the gesture every tracker
+   has and this one was missing.
+
+   Why it works the way it does. `touch-action: pan-y` on the moving
+   surface is what makes this safe: the browser keeps vertical scrolling
+   for itself and hands us horizontal gestures, so there is no
+   preventDefault anywhere. That matters because React registers
+   touchmove as a passive listener on the root, so preventDefault inside
+   onTouchMove is silently a no-op; solving it in CSS avoids attaching
+   native non-passive listeners just to fight the framework.
+
+   Direction carries meaning: right completes, left undoes. Dragging the
+   wrong way meets resistance and snaps back, so the row cannot be
+   toggled by a careless flick in the opposite direction. Every existing
+   tap target is untouched, so mouse, keyboard and screen readers behave
+   exactly as before; this is additive, never the only way in. */
+const SWIPE_COMMIT = 72;   // px of travel that counts as a decision
+const SWIPE_MAX = 96;      // visual travel cap
+
+export function SwipeRow({ checked, onToggle, children }) {
+  const [dx, setDx] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const start = useRef(null);
+  const axis = useRef(null);          // null until the gesture picks an axis
+  const swallowClick = useRef(false); // a committed swipe must not also tap
+  /* Travel is tracked in a ref as well as state, and the ref is what the
+     release decision reads. React batches rapid touchmoves, so a fast
+     flick can release before a single re-render lands and a state-only
+     read would still see 0, silently dropping the gesture. Caught in a
+     real browser; jsdom hid it because act() flushes between events. */
+  const dxRef = useRef(0);
+
+  function setDelta(v) { dxRef.current = v; setDx(v); }
+
+  const dir = checked ? -1 : 1;       // watched rows undo, unwatched complete
+  const armed = dx * dir >= SWIPE_COMMIT;
+
+  function onTouchStart(ev) {
+    const t = ev.touches[0];
+    start.current = { x: t.clientX, y: t.clientY };
+    axis.current = null;
+  }
+
+  function onTouchMove(ev) {
+    if (!start.current) return;
+    const t = ev.touches[0];
+    const ddx = t.clientX - start.current.x;
+    const ddy = t.clientY - start.current.y;
+    if (axis.current === null) {
+      if (Math.abs(ddx) < 8 && Math.abs(ddy) < 8) return;
+      axis.current = Math.abs(ddx) > Math.abs(ddy) ? 'x' : 'y';
+      if (axis.current === 'x') setDragging(true);
+    }
+    if (axis.current !== 'x') return;
+    /* Travel freely the meaningful way, resist the other. */
+    const raw = ddx * dir > 0 ? ddx : ddx * 0.25;
+    setDelta(Math.max(-SWIPE_MAX, Math.min(SWIPE_MAX, raw)));
+  }
+
+  function onTouchEnd() {
+    if (axis.current === 'x' && dxRef.current * dir >= SWIPE_COMMIT && onToggle) {
+      swallowClick.current = true;
+      onToggle();
+    }
+    start.current = null;
+    axis.current = null;
+    setDragging(false);
+    setDelta(0);
+  }
+
+  return (
+    <div className="swipe"
+      onClickCapture={(ev) => {
+        if (swallowClick.current) { swallowClick.current = false; ev.stopPropagation(); ev.preventDefault(); }
+      }}>
+      <div className={'swipe__action' + (dir < 0 ? ' swipe__action--right' : '') + (armed ? ' swipe__action--armed' : '')} aria-hidden="true">
+        <span>{checked ? '↶ Undo' : '✓ Watched'}</span>
+      </div>
+      <div
+        className={'swipe__surface' + (dragging ? '' : ' swipe__surface--settle')}
+        style={dx ? { transform: 'translateX(' + dx + 'px)' } : undefined}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchEnd}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 /* Episode row used by Shows history, Watch Next and stale sections. */
 export function EpRow({ show, s, e, remaining, epName, badge, checked, onToggle }) {
   const { openShow } = useApp();
   const rem = remaining != null && remaining > 1
     ? <span className="rem">+{remaining - 1}</span> : null;
-  return (
+  const row = (
     <article className={'ep-row' + (checked ? ' ep-row--watched' : '')}>
       <button className="ep-row__poster" onClick={() => openShow(show.id, { s: s, e: e })}>
         <Poster path={show.poster} alt={show.name} />
@@ -138,6 +230,8 @@ export function EpRow({ show, s, e, remaining, epName, badge, checked, onToggle 
       <CheckBtn checked={!!checked} onClick={onToggle} />
     </article>
   );
+  /* Rows without a toggle (nothing to tick) stay plain. */
+  return onToggle ? <SwipeRow checked={!!checked} onToggle={onToggle}>{row}</SwipeRow> : row;
 }
 
 export function EmptyState({ title, sub, children }) {

@@ -2,7 +2,7 @@
    [nudge banner] -> [Tonight card] -> [Up next queue] ->
    [Still watching? keep/drop] -> [history].
    Empty store shows the search-led FirstRun instead. */
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import * as Store from '../lib/store.js';
 import * as U from '../lib/util.js';
 import { useApp } from '../context.js';
@@ -88,6 +88,57 @@ export default function ShowsTab() {
   const hist = Store.history(20);
   const showCount = Object.keys(Store.get().shows).length;
 
+  /* v2.8.0, owner request: with a large library the keep/drop pile buries
+     the watch history and reaching it means scrolling forever. Pulling
+     down from the top of the tab jumps straight to it.
+
+     On the record: the audit recommended collapsing keep/drop behind a
+     button instead, matching the watchlist, stats and data surfaces, on
+     discoverability grounds. The owner chose the gesture. The label that
+     appears mid-pull is the mitigation for the discoverability objection.
+     Listeners live on window rather than a wrapper element so the tab's
+     layout is untouched, and they are passive because the gesture never
+     needs to cancel a scroll; Android's own pull-to-refresh is held off
+     by overscroll-behavior in CSS, not by preventDefault. */
+  const histRef = useRef(null);
+  const [pull, setPull] = useState(0);
+  const PULL_COMMIT = 60;
+  /* Travel is mirrored into a ref for the same reason the swipe row keeps
+     one: React batches rapid touchmoves, so the release handler cannot
+     trust state to be current. It also keeps scrollIntoView OUT of a
+     state updater, where a side effect does not belong and can be
+     deferred or double-invoked. */
+  const pullRef = useRef(0);
+
+  useEffect(() => {
+    if (hist.length === 0) return undefined;
+    let startY = null;
+    const setPullBoth = (v) => { pullRef.current = v; setPull(v); };
+    const ts = (ev) => { startY = window.scrollY <= 4 ? ev.touches[0].clientY : null; };
+    const tm = (ev) => {
+      if (startY == null) return;
+      const dy = ev.touches[0].clientY - startY;
+      setPullBoth(dy > 0 ? Math.min(110, dy * 0.5) : 0);
+    };
+    const te = () => {
+      if (pullRef.current >= PULL_COMMIT && histRef.current) {
+        histRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      setPullBoth(0);
+      startY = null;
+    };
+    window.addEventListener('touchstart', ts, { passive: true });
+    window.addEventListener('touchmove', tm, { passive: true });
+    window.addEventListener('touchend', te, { passive: true });
+    window.addEventListener('touchcancel', te, { passive: true });
+    return () => {
+      window.removeEventListener('touchstart', ts);
+      window.removeEventListener('touchmove', tm);
+      window.removeEventListener('touchend', te);
+      window.removeEventListener('touchcancel', te);
+    };
+  }, [hist.length]);
+
   if (showCount === 0 && hist.length === 0) return <FirstRun />;
 
   /* v2.7.1: the watchlist moved from the bottom of this tab (where a
@@ -102,6 +153,14 @@ export default function ShowsTab() {
 
   return (
     <>
+      {hist.length > 0 && (
+        <div className="pullhint" style={{ height: pull }} aria-hidden="true">
+          <span className={'pullhint__label' + (pull >= PULL_COMMIT ? ' pullhint__label--armed' : '')}>
+            {pull >= PULL_COMMIT ? 'Release for your history' : 'Pull for your history'}
+          </span>
+        </div>
+      )}
+
       <div className="install-tagrow">
         <button className="install-tag" onClick={() => go('profile', 'install')}>
           📱 How to add this app to your phone
@@ -151,7 +210,7 @@ export default function ShowsTab() {
               series with the accent progress bar, distinct episodes
               ticked and completion percent (rewatches never inflate
               it). Same seg pattern as the Profile toggles. */}
-          <div className="section-row">
+          <div className="section-row" ref={histRef}>
             <SectionLabel>WATCHED HISTORY</SectionLabel>
             <div className="seg seg--mini" role="group" aria-label="History view">
               <button className={'seg__opt' + (histView === 'episodes' ? ' seg__opt--on' : '')} onClick={() => setHistView('episodes')}>Episodes</button>
